@@ -49,107 +49,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final settingsService = Provider.of<SettingsService>(context, listen: false);
     final themeService = Provider.of<ThemeService>(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final settingsService = Provider.of<SettingsService>(context);
+    final colorScheme = Theme.of(context).colorScheme;
     
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
         centerTitle: true,
-        actions: [
-          // Theme toggle button
-          IconButton(
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-            tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-            onPressed: () {
-              themeService.toggleThemeMode();
-            },
-          ),
-        ],
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
-          _buildSectionHeader('Appearance', colorScheme, Icons.palette_outlined),
+          _buildSectionHeader('Theme', colorScheme, Icons.palette_outlined),
           
-          // Theme settings
+          // System theme
           SwitchListTile(
             title: const Text('Use system theme'),
-            subtitle: const Text('Follow your device theme settings'),
+            subtitle: const Text('Automatically switch between light and dark theme'),
             value: _useSystemTheme,
             onChanged: (value) {
               setState(() {
                 _useSystemTheme = value;
               });
-              // Apply theme change immediately
-              final themeService = Provider.of<ThemeService>(context, listen: false);
+              // Apply theme setting immediately
               themeService.setUseSystemTheme(value);
             },
             secondary: Icon(Icons.brightness_auto, color: colorScheme.primary),
           ),
           
+          // Dark mode (only if not using system theme)
           if (!_useSystemTheme)
             SwitchListTile(
-              title: const Text('Dark mode'),
-              subtitle: const Text('Use dark theme'),
+              title: const Text('Dark theme'),
+              subtitle: const Text('Use dark theme throughout the app'),
               value: _isDarkMode,
               onChanged: (value) {
                 setState(() {
                   _isDarkMode = value;
                 });
-                // Apply theme change immediately
-                final themeService = Provider.of<ThemeService>(context, listen: false);
+                // Apply theme setting immediately
                 themeService.setDarkMode(value);
               },
-              secondary: Icon(
-                _isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                color: colorScheme.primary,
-              ),
+              secondary: Icon(_isDarkMode ? Icons.dark_mode : Icons.light_mode, color: colorScheme.primary),
             ),
-            
-          // Time format settings
+          
+          _buildSectionHeader('Time', colorScheme, Icons.access_time),
+          
+          // Time format
           ListTile(
             title: const Text('Time format'),
             subtitle: Text(_timeFormat == '24h' ? '24-hour format' : '12-hour format'),
-            leading: Icon(Icons.access_time, color: colorScheme.primary),
-            trailing: DropdownButton<String>(
-              value: _timeFormat,
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _timeFormat = newValue;
-                  });
-                  // Apply time format change immediately
-                  settingsService.setTimeFormat(newValue);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Time format updated to ${newValue == '24h' ? '24-hour' : '12-hour'} format'),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-              },
-              icon: Icon(Icons.arrow_drop_down, color: colorScheme.primary),
-              elevation: 2,
-              borderRadius: BorderRadius.circular(8),
-              underline: Container(),
-              items: const [
-                DropdownMenuItem(
-                  value: '12h', 
-                  child: Text('12h', style: TextStyle(fontWeight: FontWeight.w500)),
-                ),
-                DropdownMenuItem(
-                  value: '24h', 
-                  child: Text('24h', style: TextStyle(fontWeight: FontWeight.w500)),
-                ),
+            leading: Icon(Icons.schedule, color: colorScheme.primary),
+            trailing: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: '12h', label: Text('12h')),
+                ButtonSegment(value: '24h', label: Text('24h')),
               ],
+              selected: {_timeFormat},
+              onSelectionChanged: (Set<String> selection) {
+                final value = selection.first;
+                setState(() {
+                  _timeFormat = value;
+                });
+                // Apply time format setting immediately
+                settingsService.setTimeFormat(value);
+              },
             ),
           ),
           
-          _buildSectionHeader('Sound & Haptics', colorScheme, Icons.volume_up_outlined),
+          _buildSectionHeader('Alarm', colorScheme, Icons.alarm),
           
-          // Alarm sound settings
+          // Alarm sound
           ListTile(
             title: const Text('Alarm sound'),
             subtitle: Text(_alarmSound),
@@ -248,21 +219,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           _buildSectionHeader('About', colorScheme, Icons.info_outline),
           
+          // App info
           ListTile(
             title: const Text('Version'),
             subtitle: const Text('1.0.0'),
-            leading: Icon(Icons.info, color: colorScheme.primary),
+            leading: Icon(Icons.app_settings_alt, color: colorScheme.primary),
           ),
           
           ListTile(
-            title: const Text('Privacy Policy'),
-            leading: Icon(Icons.privacy_tip, color: colorScheme.primary),
-            onTap: () {
-              // TODO: Navigate to privacy policy
-            },
+            title: const Text('Credits'),
+            subtitle: const Text('Made with Flutter'),
+            leading: Icon(Icons.code, color: colorScheme.primary),
           ),
-          
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -271,31 +239,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionHeader(String title, ColorScheme colorScheme, IconData icon) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: colorScheme.primary.withOpacity(0.8),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary.withOpacity(0.8),
-                ),
-              ),
-            ],
+          Icon(icon, size: 20, color: colorScheme.primary),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primary,
+            ),
           ),
-          const SizedBox(height: 6),
-          Container(
-            height: 1,
-            color: colorScheme.primary.withOpacity(0.1),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Divider(
+              color: colorScheme.primary.withOpacity(0.2),
+              thickness: 1,
+            ),
           ),
         ],
       ),

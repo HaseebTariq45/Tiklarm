@@ -4,8 +4,11 @@ import 'package:tiklarm/models/alarm_model.dart';
 import 'package:tiklarm/providers/alarm_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:tiklarm/services/timer_service.dart';
+import 'package:tiklarm/services/sound_service.dart';
+import 'package:tiklarm/services/vibration_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
-class AlarmTriggerScreen extends StatelessWidget {
+class AlarmTriggerScreen extends StatefulWidget {
   final AlarmModel alarm;
   
   const AlarmTriggerScreen({
@@ -14,9 +17,66 @@ class AlarmTriggerScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<AlarmTriggerScreen> createState() => _AlarmTriggerScreenState();
+}
+
+class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> {
+  final SoundService _soundService = SoundService();
+  final VibrationService _vibrationService = VibrationService();
+  
+  @override
+  void initState() {
+    super.initState();
+    _startAlarm();
+  }
+  
+  void _startAlarm() async {
+    try {
+      // Keep screen on while alarm is active
+      await WakelockPlus.enable();
+      
+      // Play alarm sound
+      await _soundService.playAlarmSound();
+      
+      // Start vibration if enabled
+      if (widget.alarm.isVibrate) {
+        await _vibrationService.startAlarmVibration();
+      }
+    } catch (e) {
+      debugPrint('Error starting alarm features: $e');
+      // Still try to play sound and vibrate even if wakelock fails
+      try {
+        await _soundService.playAlarmSound();
+        
+        if (widget.alarm.isVibrate) {
+          await _vibrationService.startAlarmVibration();
+        }
+      } catch (soundError) {
+        debugPrint('Error playing alarm sound/vibration: $soundError');
+      }
+    }
+  }
+  
+  @override
+  void dispose() {
+    try {
+      // Stop sound and vibration when screen is closed
+      _soundService.stopSound();
+      _vibrationService.stopVibration();
+      
+      // Allow screen to turn off again
+      WakelockPlus.disable();
+    } catch (e) {
+      debugPrint('Error cleaning up alarm resources: $e');
+    }
+    
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final timerService = TimerService();
-    final formattedTime = timerService.formatTimeOfDay(alarm.time);
+    final formattedTime = timerService.formatTimeOfDay(widget.alarm.time);
     
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -48,11 +108,12 @@ class AlarmTriggerScreen extends StatelessWidget {
             const SizedBox(height: 20),
             
             // Alarm Label
-            if (alarm.label.isNotEmpty)
+            if (widget.alarm.label.isNotEmpty)
               Text(
-                alarm.label,
+                widget.alarm.label,
                 style: TextStyle(
                   fontSize: 24,
+                  fontWeight: FontWeight.w500,
                   color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
                 ),
               ),
@@ -61,9 +122,8 @@ class AlarmTriggerScreen extends StatelessWidget {
             
             // Action Buttons
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // Snooze Button
                   Expanded(
@@ -71,7 +131,7 @@ class AlarmTriggerScreen extends StatelessWidget {
                       context,
                       Icons.snooze,
                       'Snooze',
-                      Colors.orange.shade600,
+                      Colors.amber.shade700,
                       () => _snoozeAlarm(context),
                     ),
                   ),
@@ -84,7 +144,7 @@ class AlarmTriggerScreen extends StatelessWidget {
                       context,
                       Icons.alarm_off,
                       'Dismiss',
-                      Colors.red.shade600,
+                      Colors.red.shade700,
                       () => _dismissAlarm(context),
                     ),
                   ),
@@ -132,13 +192,13 @@ class AlarmTriggerScreen extends StatelessWidget {
 
   void _snoozeAlarm(BuildContext context) {
     final alarmProvider = Provider.of<AlarmProvider>(context, listen: false);
-    alarmProvider.snoozeAlarm(alarm.id);
+    alarmProvider.snoozeAlarm(widget.alarm.id);
     Navigator.pop(context);
   }
 
   void _dismissAlarm(BuildContext context) {
     final alarmProvider = Provider.of<AlarmProvider>(context, listen: false);
-    alarmProvider.dismissAlarm(alarm.id);
+    alarmProvider.dismissAlarm(widget.alarm.id);
     Navigator.pop(context);
   }
 } 

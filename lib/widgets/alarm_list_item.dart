@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tiklarm/models/alarm_model.dart';
 import 'package:tiklarm/services/timer_service.dart';
+import 'package:provider/provider.dart';
 
 class AlarmListItem extends StatelessWidget {
   final AlarmModel alarm;
@@ -21,7 +22,7 @@ class AlarmListItem extends StatelessWidget {
     final isActive = alarm.isActive;
     final brightness = Theme.of(context).brightness;
     final isDark = brightness == Brightness.dark;
-    final timerService = TimerService();
+    final timerService = Provider.of<TimerService>(context);
     
     return Dismissible(
       key: Key(alarm.id),
@@ -293,7 +294,7 @@ class AlarmListItem extends StatelessWidget {
   }
 
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
-    final timerService = TimerService();
+    final timerService = Provider.of<TimerService>(context, listen: false);
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

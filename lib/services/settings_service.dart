@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tiklarm/services/timer_service.dart';
+import 'package:flutter/foundation.dart';
 
 class SettingsService extends ChangeNotifier {
   static final SettingsService _instance = SettingsService._internal();
@@ -86,6 +88,14 @@ class SettingsService extends ChangeNotifier {
     _keepScreenOn = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('keepScreenOn', value);
+    
+    // Notify TimerService to apply the new setting if any timers are running
+    try {
+      TimerService().applySettingsChange();
+    } catch (e) {
+      debugPrint('Error applying screen wake setting change: $e');
+    }
+    
     notifyListeners();
   }
   

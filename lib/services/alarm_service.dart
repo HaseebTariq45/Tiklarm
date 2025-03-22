@@ -14,11 +14,13 @@ import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:tiklarm/utils/platform_utils.dart';
+import 'package:tiklarm/services/settings_service.dart';
 
 class AlarmService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   List<AlarmModel> _alarms = [];
   bool _isNativeAlarmsSupported = false;
+  final SettingsService _settingsService = SettingsService();
   
   // Singleton pattern
   static final AlarmService _instance = AlarmService._internal();
@@ -266,14 +268,14 @@ class AlarmService {
     final alarmSettings = AlarmSettings(
       id: int.parse(alarm.id),
       dateTime: scheduledDate,
-      assetAudioPath: 'assets/alarm_sounds/${alarm.soundPath}.mp3',
+      assetAudioPath: 'assets/sounds/${alarm.soundPath}.mp3',
       loopAudio: true,
       vibrate: alarm.isVibrate,
       notificationSettings: NotificationSettings(
         title: 'Alarm',
         body: alarm.label.isNotEmpty ? alarm.label : 'Time to wake up!',
       ),
-      volumeSettings: VolumeSettings.fixed(volume: 0.8),
+      volumeSettings: VolumeSettings.fixed(volume: _settingsService.alarmVolume),
     );
     
     await Alarm.set(alarmSettings: alarmSettings);
@@ -305,7 +307,7 @@ class AlarmService {
       final alarmSettings = AlarmSettings(
         id: int.parse('${alarm.id}9'), // Add 9 to the ID to make it unique
         dateTime: snoozeTime,
-        assetAudioPath: 'assets/alarm_sounds/${alarm.soundPath}.mp3',
+        assetAudioPath: 'assets/sounds/${alarm.soundPath}.mp3',
         loopAudio: true,
         vibrate: alarm.isVibrate,
         notificationSettings: NotificationSettings(
@@ -314,7 +316,7 @@ class AlarmService {
               ? '${alarm.label} (Snoozed)' 
               : 'Snoozed alarm',
         ),
-        volumeSettings: VolumeSettings.fixed(volume: 0.8),
+        volumeSettings: VolumeSettings.fixed(volume: _settingsService.alarmVolume),
       );
       
       await Alarm.set(alarmSettings: alarmSettings);

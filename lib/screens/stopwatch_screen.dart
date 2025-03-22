@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:tiklarm/services/timer_service.dart';
+import 'package:flutter/foundation.dart';
 
 class StopwatchScreen extends StatefulWidget {
   const StopwatchScreen({Key? key}) : super(key: key);
@@ -25,6 +27,9 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
   // For tracking fastest and slowest laps
   int? _fastestLapIndex;
   int? _slowestLapIndex;
+  
+  // Service for wakelock management
+  final TimerService _timerService = TimerService();
 
   @override
   void initState() {
@@ -62,39 +67,77 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
     _pulseController.dispose();
     _rotationController.dispose();
     _waveController.dispose();
+    
+    // Ensure wakelock is disabled when leaving screen
+    try {
+      _timerService.handleWakelock(false);
+    } catch (e) {
+      debugPrint('Error disabling wakelock: $e');
+    }
+    
     super.dispose();
   }
 
   void _startStopwatch() {
-    setState(() {
-      _isRunning = true;
-      _stopwatch.start();
-      _pulseController.repeat(reverse: true);
-    });
+    if (!_isRunning) {
+      setState(() {
+        _isRunning = true;
+        _stopwatch.start();
+        _pulseController.repeat(reverse: true);
+      });
+      
+      _startTimer();
+      
+      // Enable wakelock if running
+      try {
+        _timerService.handleWakelock(true);
+      } catch (e) {
+        debugPrint('Error enabling wakelock: $e');
+      }
+    }
+  }
 
+  void _startTimer() {
     _timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
-      setState(() {});
+      setState(() {
+        // This will trigger a rebuild to update the displayed time
+      });
     });
   }
 
   void _stopStopwatch() {
-    setState(() {
-      _isRunning = false;
-      _stopwatch.stop();
-      _pulseController.stop();
-    });
-    _timer?.cancel();
+    if (_isRunning) {
+      setState(() {
+        _isRunning = false;
+        _stopwatch.stop();
+        _pulseController.stop();
+      });
+      _timer?.cancel();
+      
+      // Disable wakelock when stopped
+      try {
+        _timerService.handleWakelock(false);
+      } catch (e) {
+        debugPrint('Error disabling wakelock: $e');
+      }
+    }
   }
 
   void _resetStopwatch() {
-    _stopStopwatch();
     setState(() {
+      _stopwatch.reset();
       _laps.clear();
       _lapCounter = 1;
-      _stopwatch.reset();
       _fastestLapIndex = null;
       _slowestLapIndex = null;
     });
+    
+    // Ensure wakelock is disabled on reset
+    try {
+      _timerService.handleWakelock(false);
+    } catch (e) {
+      debugPrint('Error disabling wakelock: $e');
+    }
   }
 
   void _recordLap() {

@@ -15,6 +15,26 @@ class AlarmListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Add TimerService as a provider so the UI rebuilds when settings change
+    return ChangeNotifierProvider.value(
+      value: TimerService(),
+      child: _AlarmListContent(showAppBar: showAppBar),
+    );
+  }
+}
+
+class _AlarmListContent extends StatelessWidget {
+  final bool showAppBar;
+  
+  const _AlarmListContent({Key? key, required this.showAppBar}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // This will listen to both AlarmProvider and TimerService changes
+    final alarmProvider = Provider.of<AlarmProvider>(context);
+    // Listen to TimerService changes - this ensures we rebuild when time format changes
+    final timerService = Provider.of<TimerService>(context);
+    
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       appBar: showAppBar ? AppBar(
@@ -59,143 +79,102 @@ class AlarmListScreen extends StatelessWidget {
               ),
             ),
           
-          // Main content
-          Expanded(
-            child: Consumer<AlarmProvider>(
-              builder: (context, alarmProvider, child) {
-                if (alarmProvider.isLoading) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Loading alarms...',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final alarms = alarmProvider.alarms;
-                
-                if (alarms.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.nightlight_round,
-                            size: 80,
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'No alarms set',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onBackground,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap the + button to create your first alarm',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        ElevatedButton.icon(
-                          onPressed: () => _navigateToAddAlarm(context),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Alarm'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 100),
-                    itemCount: alarms.length,
-                    itemBuilder: (context, index) {
-                      final alarm = alarms[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: AlarmListItem(
-                          alarm: alarm,
-                          onToggle: (value) {
-                            alarmProvider.toggleAlarm(alarm.id, value);
-                          },
-                          onTap: () {
-                            _navigateToEditAlarm(context, alarm);
-                          },
-                          onDelete: () {
-                            _showDeleteConfirmation(context, alarm);
-                          },
-                        ),
-                      );
-                    },
+          // Alarms
+          alarmProvider.isLoading
+              ? const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(),
                   ),
-                );
-              },
-            ),
-          ),
+                )
+              : alarmProvider.alarms.isEmpty
+                  ? Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.alarm_off,
+                              size: 80,
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'No alarms yet',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Tap the + button to add one',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: alarmProvider.alarms.length,
+                        itemBuilder: (context, index) {
+                          final alarm = alarmProvider.alarms[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: AlarmListItem(
+                              alarm: alarm,
+                              onToggle: (isActive) =>
+                                  alarmProvider.toggleAlarm(alarm.id, isActive),
+                              onTap: () => _editAlarm(context, alarm),
+                              onDelete: () => alarmProvider.deleteAlarm(alarm.id),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
         ],
       ),
       floatingActionButton: Container(
         margin: const EdgeInsets.only(bottom: 64),
-        child: FloatingActionButton.extended(
-          onPressed: () => _navigateToAddAlarm(context),
-          icon: const Icon(Icons.add),
-          label: const Text('New Alarm'),
-          elevation: 4,
+        child: FloatingActionButton(
+          onPressed: () => _addAlarm(context),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          child: const Icon(Icons.add),
+          tooltip: 'Add Alarm',
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  void _navigateToAddAlarm(BuildContext context) async {
-    // Generate a unique ID for the new alarm
-    final String id = DateTime.now().millisecondsSinceEpoch.toString();
-    
-    // Default alarm with current time
-    final TimeOfDay now = TimeOfDay.now();
-    final AlarmModel newAlarm = AlarmModel(
-      id: id,
-      time: now,
-      days: List.filled(7, false),
-    );
-    
-    await Navigator.push(
+  void _addAlarm(BuildContext context) {
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AlarmEditScreen(alarm: newAlarm, isNew: true),
+        builder: (context) => AlarmEditScreen(
+          isNew: true,
+          alarm: AlarmModel(
+            id: '',
+            time: TimeOfDay.now(),
+            isActive: true,
+            label: '',
+            days: List.filled(7, false),
+            isVibrate: true,
+          ),
+        ),
       ),
     );
   }
 
-  void _navigateToEditAlarm(BuildContext context, AlarmModel alarm) async {
-    await Navigator.push(
+  void _editAlarm(BuildContext context, AlarmModel alarm) {
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => AlarmEditScreen(alarm: alarm, isNew: false),
@@ -204,12 +183,14 @@ class AlarmListScreen extends StatelessWidget {
   }
 
   void _showDeleteConfirmation(BuildContext context, AlarmModel alarm) {
+    final timerService = Provider.of<TimerService>(context, listen: false);
+    
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Alarm'),
         content: Text(
-          'Are you sure you want to delete the alarm set for ${_formatTime(alarm.time)}?',
+          'Are you sure you want to delete the alarm set for ${timerService.formatTimeOfDay(alarm.time)}?',
         ),
         actions: [
           TextButton(
@@ -230,10 +211,5 @@ class AlarmListScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatTime(TimeOfDay time) {
-    // Use TimerService for consistent time formatting across the app
-    return TimerService().formatTimeOfDay(time);
   }
 } 
