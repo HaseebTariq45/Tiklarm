@@ -4,6 +4,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:tiklarm/services/timer_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+import 'package:tiklarm/providers/stopwatch_provider.dart';
+import 'package:wakelock/wakelock.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 class StopwatchScreen extends StatefulWidget {
   const StopwatchScreen({Key? key}) : super(key: key);
@@ -23,6 +27,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
   late AnimationController _pulseController;
   late AnimationController _rotationController;
   late AnimationController _waveController;
+  late AnimationController _initialAnimationController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _scaleAnimation;
   
@@ -32,6 +37,10 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
   
   // Service for wakelock management
   final TimerService _timerService = TimerService();
+
+  final GlobalKey _timeDisplayKey = GlobalKey();
+  final GlobalKey _controlsKey = GlobalKey();
+  final GlobalKey _lapListKey = GlobalKey();
 
   @override
   void initState() {
@@ -66,6 +75,12 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
       duration: const Duration(seconds: 8),
     );
     
+    // Initialize animation controller for initial animations
+    _initialAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    
     // Start background animations
     _rotationController.repeat();
     _waveController.repeat(reverse: true);
@@ -74,6 +89,18 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
     Future.delayed(const Duration(milliseconds: 200), () {
       _pulseController.forward();
     });
+
+    // Start the initial animation when the screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initialAnimationController.forward();
+    });
+    
+    // Enable wakelock when the stopwatch screen is active
+    try {
+      Wakelock.enable();
+    } catch (e) {
+      debugPrint('Error enabling wakelock: $e');
+    }
   }
 
   @override
@@ -82,6 +109,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
     _pulseController.dispose();
     _rotationController.dispose();
     _waveController.dispose();
+    _initialAnimationController.dispose();
+    
+    // Disable wakelock when leaving the screen
+    try {
+      Wakelock.disable();
+    } catch (e) {
+      debugPrint('Error disabling wakelock: $e');
+    }
     
     // Ensure wakelock is disabled when leaving screen
     try {
@@ -231,9 +266,35 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final stopwatchProvider = Provider.of<StopwatchProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     
+    // Create the animations for each section
+    final timeDisplayAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _initialAnimationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
+    ));
+    
+    final controlsAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _initialAnimationController,
+      curve: const Interval(0.2, 0.7, curve: Curves.easeOutCubic),
+    ));
+    
+    final lapListAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _initialAnimationController,
+      curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic),
+    ));
+
     return AnimatedBuilder(
       animation: _waveController,
       builder: (context, child) {
@@ -265,383 +326,368 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Stopwatch display with animations
-                AnimatedBuilder(
-                  animation: Listenable.merge([_pulseAnimation, _scaleAnimation]),
-                  builder: (context, child) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 30, bottom: 20),
-                      child: Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: Column(
-                          children: [
-                            // Primary timer display
-                            Stack(
+                // App Bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Stopwatch',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onBackground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Time display
+                SlideTransition(
+                  position: timeDisplayAnimation,
+                  child: FadeTransition(
+                    opacity: _initialAnimationController,
+                    child: Container(
+                      key: _timeDisplayKey,
+                      margin: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
+                        children: [
+                          // Animated circles behind the time
+                          SizedBox(
+                            height: 200,
+                            width: 200,
+                            child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                // Animated rings
-                                ...List.generate(3, (index) {
-                                  final delay = index * 0.33;
-                                  final offsetAngle = index * math.pi / 3;
-                                  return AnimatedBuilder(
+                                // Background circles
+                                Positioned.fill(
+                                  child: AnimatedBuilder(
                                     animation: _rotationController,
                                     builder: (context, child) {
                                       return Transform.rotate(
-                                        angle: _rotationController.value * 2 * math.pi + offsetAngle,
-                                        child: Container(
-                                          width: 260 - (index * 10),
-                                          height: 260 - (index * 10),
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              width: 1.5,
-                                              color: colorScheme.primary.withOpacity(
-                                                _isRunning ? 
-                                                  0.1 + (0.1 * math.sin((_rotationController.value + delay) * math.pi * 2)) : 
-                                                  0.1,
-                                              ),
-                                            ),
+                                        angle: _rotationController.value * 2 * math.pi,
+                                        child: CustomPaint(
+                                          painter: CirclesPainter(
+                                            isRunning: stopwatchProvider.isRunning,
+                                            color: Theme.of(context).colorScheme.primary,
                                           ),
                                         ),
                                       );
                                     },
-                                  );
-                                }),
+                                  ),
+                                ),
                                 
-                                // Main time container
-                                Transform.scale(
-                                  scale: _isRunning ? _pulseAnimation.value : 1.0,
-                                  child: Container(
-                                    width: 200,
-                                    height: 200,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isDark ? 
-                                        Colors.black.withOpacity(0.4) : 
-                                        Colors.white.withOpacity(0.7),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
-                                          blurRadius: 20,
-                                          spreadRadius: 0,
+                                // Center time display
+                                Container(
+                                  width: 180,
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    color: isDark 
+                                        ? const Color(0xFF1A1A2E) 
+                                        : Theme.of(context).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(90),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: AnimatedBuilder(
+                                    animation: _pulseController,
+                                    builder: (context, child) {
+                                      final scale = stopwatchProvider.isRunning
+                                          ? 1.0 + (_pulseController.value * 0.05)
+                                          : 1.0;
+                                      
+                                      return Transform.scale(
+                                        scale: scale,
+                                        child: child,
+                                      );
+                                    },
+                                    child: Center(
+                                      child: Text(
+                                        _formatTime(stopwatchProvider.elapsed.inMilliseconds),
+                                        style: TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.primary,
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                    child: ClipOval(
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Milliseconds
+                          Text(
+                            _formatMilliseconds(stopwatchProvider.elapsed),
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Controls
+                SlideTransition(
+                  position: controlsAnimation,
+                  child: FadeTransition(
+                    opacity: _initialAnimationController,
+                    child: Container(
+                      key: _controlsKey,
+                      margin: const EdgeInsets.symmetric(vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Reset button
+                          if (stopwatchProvider.elapsed.inMilliseconds > 0)
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  stopwatchProvider.reset();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                                  backgroundColor: isDark 
+                                      ? const Color(0xFF2D2D44) 
+                                      : Theme.of(context).colorScheme.surface,
+                                  padding: const EdgeInsets.all(16),
+                                  shape: const CircleBorder(),
+                                  elevation: 4,
+                                  shadowColor: Colors.black.withOpacity(0.3),
+                                ),
+                                child: const Icon(Icons.refresh, size: 28),
+                              ),
+                            ),
+                          
+                          // Start/stop button
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (stopwatchProvider.isRunning) {
+                                  stopwatchProvider.stop();
+                                } else {
+                                  stopwatchProvider.start();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: stopwatchProvider.isRunning
+                                    ? Colors.red.shade600
+                                    : Theme.of(context).colorScheme.primary,
+                                padding: const EdgeInsets.all(24),
+                                shape: const CircleBorder(),
+                                elevation: 6,
+                                shadowColor: Colors.black.withOpacity(0.3),
+                              ),
+                              child: Icon(
+                                stopwatchProvider.isRunning ? Icons.pause : Icons.play_arrow,
+                                size: 36,
+                              ),
+                            ),
+                          ),
+                          
+                          // Lap button
+                          if (stopwatchProvider.isRunning || 
+                              (!stopwatchProvider.isRunning && stopwatchProvider.laps.isNotEmpty))
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (stopwatchProvider.isRunning) {
+                                    stopwatchProvider.lap();
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                                  backgroundColor: isDark 
+                                      ? const Color(0xFF2D2D44) 
+                                      : Theme.of(context).colorScheme.surface,
+                                  padding: const EdgeInsets.all(16),
+                                  shape: const CircleBorder(),
+                                  elevation: 4,
+                                  shadowColor: Colors.black.withOpacity(0.3),
+                                  disabledBackgroundColor: isDark 
+                                      ? const Color(0xFF2D2D44).withOpacity(0.5) 
+                                      : Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                                  disabledForegroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                                ),
+                                child: const Icon(Icons.flag, size: 28),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Lap times
+                FadeTransition(
+                  opacity: lapListAnimation,
+                  child: Container(
+                    key: _lapListKey,
+                    margin: const EdgeInsets.only(top: 16),
+                    child: Column(
+                      children: [
+                        if (stopwatchProvider.laps.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Laps',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onBackground.withOpacity(0.8),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    stopwatchProvider.laps.length.toString(),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        if (stopwatchProvider.laps.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                            child: AnimationLimiter(
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: stopwatchProvider.laps.length,
+                                itemBuilder: (context, index) {
+                                  // Reverse the index to show newest laps first
+                                  final reversedIndex = stopwatchProvider.laps.length - 1 - index;
+                                  final lap = stopwatchProvider.laps[reversedIndex];
+                                  
+                                  return AnimationConfiguration.staggeredList(
+                                    position: index,
+                                    duration: const Duration(milliseconds: 500),
+                                    child: SlideAnimation(
+                                      verticalOffset: 50.0,
+                                      child: FadeInAnimation(
                                         child: Container(
-                                          color: Colors.transparent,
-                                          padding: const EdgeInsets.all(16),
-                                          child: Center(
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                // Main timer text
-                                                ShaderMask(
-                                                  shaderCallback: (bounds) {
-                                                    return LinearGradient(
-                                                      colors: [
-                                                        colorScheme.primary,
-                                                        colorScheme.primary.withBlue(
-                                                          math.min(255, colorScheme.primary.blue + 40)
+                                          margin: const EdgeInsets.only(bottom: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: isDark 
+                                                ? const Color(0xFF2A2A3C) 
+                                                : Theme.of(context).colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 5,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 36,
+                                                    height: 36,
+                                                    decoration: BoxDecoration(
+                                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(18),
+                                                    ),
+                                                    child: Center(
+                                                      child: Text(
+                                                        '${reversedIndex + 1}',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Theme.of(context).colorScheme.primary,
                                                         ),
-                                                      ],
-                                                      begin: Alignment.topCenter,
-                                                      end: Alignment.bottomCenter,
-                                                    ).createShader(bounds);
-                                                  },
-                                                  child: Text(
-                                                    _formatTime(_stopwatch.elapsedMilliseconds),
-                                                    style: TextStyle(
-                                                      fontSize: 38,
-                                                      fontWeight: FontWeight.bold,
-                                                      letterSpacing: 1,
-                                                      color: Colors.white,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                const SizedBox(height: 10),
-                                                
-                                                // Status indicator
-                                                AnimatedContainer(
-                                                  duration: const Duration(milliseconds: 300),
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 16, 
-                                                    vertical: 6
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: _isRunning
-                                                        ? colorScheme.primary.withOpacity(0.15)
-                                                        : Colors.grey.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(20),
-                                                    border: Border.all(
-                                                      color: _isRunning
-                                                          ? colorScheme.primary.withOpacity(0.3)
-                                                          : Colors.grey.withOpacity(0.2),
-                                                      width: 1,
-                                                    ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
+                                                  const SizedBox(width: 16),
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
-                                                      if (_isRunning)
-                                                        Container(
-                                                          width: 8,
-                                                          height: 8,
-                                                          margin: const EdgeInsets.only(right: 6),
-                                                          decoration: BoxDecoration(
-                                                            shape: BoxShape.circle,
-                                                            color: colorScheme.primary,
-                                                          ),
-                                                        ),
                                                       Text(
-                                                        _isRunning ? 'Running' : 'Ready',
+                                                        'Lap time',
                                                         style: TextStyle(
                                                           fontSize: 14,
-                                                          fontWeight: FontWeight.w500,
-                                                          color: _isRunning
-                                                              ? colorScheme.primary
-                                                              : colorScheme.onSurface.withOpacity(0.6),
+                                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        _formatDuration(lap.lapTime),
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Theme.of(context).colorScheme.onSurface,
                                                         ),
                                                       ),
                                                     ],
                                                   ),
-                                                ),
-                                              ],
-                                            ),
+                                                ],
+                                              ),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    'Total',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    _formatDuration(lap.totalTime),
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Theme.of(context).colorScheme.onSurface,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
-                // Lap counter and statistics
-                if (_laps.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isDark 
-                        ? Colors.black.withOpacity(0.2) 
-                        : Colors.white.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isDark
-                            ? colorScheme.primary.withOpacity(0.1)
-                            : colorScheme.primary.withOpacity(0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Lap counter
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${_laps.length} ${_laps.length == 1 ? 'Lap' : 'Laps'}',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Best: ${_fastestLapIndex != null ? _formatLapTime(_laps[_fastestLapIndex!]['lapTime']) : "--:--"}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Total time
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Total Time',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurface.withOpacity(0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatTime(_stopwatch.elapsedMilliseconds),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                // Lap list
-                Expanded(
-                  child: _laps.isEmpty
-                      ? Center(
-                          child: AnimatedOpacity(
-                            opacity: 0.7,
-                            duration: const Duration(milliseconds: 500),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isDark
-                                        ? colorScheme.surface.withOpacity(0.1)
-                                        : colorScheme.primary.withOpacity(0.05),
-                                  ),
-                                  child: Icon(
-                                    Icons.flag_outlined,
-                                    size: 40,
-                                    color: colorScheme.primary.withOpacity(0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? Colors.black.withOpacity(0.1)
-                                        : Colors.white.withOpacity(0.6),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'No laps recorded',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w500,
-                                          color: colorScheme.onSurface.withOpacity(0.8),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Press the lap button while running\nto record lap times',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: colorScheme.onSurface.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : Container(
-                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          decoration: BoxDecoration(
-                            color: isDark 
-                              ? Colors.black.withOpacity(0.1) 
-                              : Colors.white.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: isDark
-                                  ? colorScheme.primary.withOpacity(0.1)
-                                  : colorScheme.primary.withOpacity(0.1),
-                              width: 1,
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-                                itemCount: _laps.length,
-                                itemBuilder: (context, index) {
-                                  // Reverse the index to show newest laps at the top
-                                  int reversedIndex = _laps.length - 1 - index;
-                                  return _buildLapItem(context, reversedIndex);
+                                  );
                                 },
                               ),
                             ),
                           ),
-                        ),
-                ),
-                
-                // Control buttons
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  decoration: BoxDecoration(
-                    color: isDark 
-                        ? Colors.black.withOpacity(0.2) 
-                        : Colors.white.withOpacity(0.8),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildControlButton(
-                          icon: Icons.refresh_rounded,
-                          label: 'Reset',
-                          onPressed: _stopwatch.elapsedMilliseconds > 0 ? _resetStopwatch : null,
-                          color: colorScheme.error,
-                          isOutlined: true,
-                        ),
-                        if (_isRunning)
-                          _buildControlButton(
-                            icon: Icons.flag_rounded,
-                            label: 'Lap',
-                            onPressed: _recordLap,
-                            color: colorScheme.tertiary,
-                          ),
-                        _isRunning
-                            ? _buildControlButton(
-                                icon: Icons.pause_rounded,
-                                label: 'Stop',
-                                onPressed: _stopStopwatch,
-                                color: colorScheme.secondary,
-                              )
-                            : _buildControlButton(
-                                icon: Icons.play_arrow_rounded,
-                                label: 'Start',
-                                onPressed: _startStopwatch,
-                                color: colorScheme.primary,
-                                isLarge: true,
-                              ),
                       ],
                     ),
                   ),
@@ -654,222 +700,15 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildLapItem(BuildContext context, int index) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final lap = _laps[index];
-    final lapNumber = lap['number'] as int;
-    final lapTime = lap['lapTime'] as int;
-    final totalTime = lap['totalTime'] as int;
-    
-    bool isLastLap = index == 0; // First in the list is the latest lap
-    bool isFastest = _fastestLapIndex == index;
-    bool isSlowest = _slowestLapIndex == index;
-    
-    Color labelColor;
-    String labelText = '';
-    
-    if (isLastLap) {
-      labelColor = colorScheme.primary;
-      labelText = 'Current';
-    } else if (isFastest) {
-      labelColor = Colors.green;
-      labelText = 'Fastest';
-    } else if (isSlowest && _laps.length > 2) {
-      labelColor = Colors.orange;
-      labelText = 'Slowest';
-    } else {
-      labelColor = Colors.transparent;
-    }
-    
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      decoration: BoxDecoration(
-        color: isFastest
-            ? Colors.green.withOpacity(isDark ? 0.1 : 0.07)
-            : (isSlowest && _laps.length > 2)
-                ? Colors.orange.withOpacity(isDark ? 0.1 : 0.07)
-                : isLastLap
-                    ? colorScheme.primary.withOpacity(isDark ? 0.1 : 0.07)
-                    : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            // Lap number
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isLastLap
-                    ? colorScheme.primary.withOpacity(0.15)
-                    : isFastest
-                        ? Colors.green.withOpacity(0.1)
-                        : isSlowest && _laps.length > 2
-                            ? Colors.orange.withOpacity(0.1)
-                            : colorScheme.surfaceVariant.withOpacity(0.15),
-                border: Border.all(
-                  color: isLastLap
-                      ? colorScheme.primary.withOpacity(0.3)
-                      : isFastest
-                          ? Colors.green.withOpacity(0.3)
-                          : isSlowest && _laps.length > 2
-                              ? Colors.orange.withOpacity(0.3)
-                              : Colors.transparent,
-                  width: 1,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                lapNumber.toString(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isLastLap
-                      ? colorScheme.primary
-                      : isFastest
-                          ? Colors.green
-                          : isSlowest && _laps.length > 2
-                              ? Colors.orange
-                              : colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            // Lap info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Lap $lapNumber',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: colorScheme.onSurface.withOpacity(0.9),
-                            ),
-                          ),
-                          if (labelText.isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: labelColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                labelText,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: labelColor,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      Text(
-                        _formatLapTime(lapTime),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: isFastest
-                              ? Colors.green
-                              : (isSlowest && _laps.length > 2)
-                                  ? Colors.orange
-                                  : colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Total: ${_formatTime(totalTime)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
   }
 
-  Widget _buildControlButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback? onPressed,
-    required Color color,
-    bool isOutlined = false,
-    bool isLarge = false,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return AnimatedOpacity(
-      opacity: onPressed == null ? 0.5 : 1.0,
-      duration: const Duration(milliseconds: 200),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(isLarge ? 26 : 22),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: isOutlined 
-                ? Colors.transparent 
-                : isDark 
-                    ? color.withOpacity(0.8) 
-                    : color.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(isLarge ? 26 : 22),
-              border: isOutlined ? Border.all(color: color, width: 2) : null,
-              boxShadow: isOutlined || onPressed == null
-                  ? null
-                  : [
-                      BoxShadow(
-                        color: color.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: isLarge ? 32 : 24,
-              vertical: 14,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color: isOutlined ? color : Colors.white,
-                  size: isLarge ? 28 : 24,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: isLarge ? 17 : 15,
-                    fontWeight: FontWeight.bold,
-                    color: isOutlined ? color : Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  String _formatMilliseconds(Duration duration) {
+    return '.${(duration.inMilliseconds % 1000).toString().padLeft(3, '0')}';
   }
 }
 
@@ -953,5 +792,91 @@ class BackgroundPainter extends CustomPainter {
   bool shouldRepaint(BackgroundPainter oldDelegate) {
     return oldDelegate.waveValue != waveValue || 
            oldDelegate.rotationValue != rotationValue;
+  }
+}
+
+class CirclesPainter extends CustomPainter {
+  final bool isRunning;
+  final Color color;
+
+  CirclesPainter({
+    required this.isRunning,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    
+    // Draw outer circle
+    final outerPaint = Paint()
+      ..color = color.withOpacity(isRunning ? 0.15 : 0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 15;
+    
+    canvas.drawCircle(center, radius, outerPaint);
+    
+    // Draw middle circle
+    final middlePaint = Paint()
+      ..color = color.withOpacity(isRunning ? 0.1 : 0.05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8;
+    
+    canvas.drawCircle(center, radius * 0.75, middlePaint);
+    
+    // Draw inner circle
+    final innerPaint = Paint()
+      ..color = color.withOpacity(isRunning ? 0.2 : 0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    
+    canvas.drawCircle(center, radius * 0.5, innerPaint);
+    
+    if (isRunning) {
+      // Draw accent circle segment
+      final accentPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round;
+      
+      const startAngle = -math.pi / 2;
+      const sweepAngle = math.pi / 3;
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius * 0.85),
+        startAngle,
+        sweepAngle,
+        false,
+        accentPaint,
+      );
+      
+      // Draw small dots
+      final dotPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
+      
+      for (int i = 0; i < 12; i++) {
+        final angle = 2 * math.pi * (i / 12);
+        final dotSize = i % 3 == 0 ? 6.0 : 3.0;
+        final dotOffset = Offset(
+          center.dx + math.cos(angle) * (radius * 0.9),
+          center.dy + math.sin(angle) * (radius * 0.9),
+        );
+        
+        final dotColor = color.withOpacity(i % 3 == 0 ? 0.8 : 0.4);
+        final dotPaintWithColor = Paint()
+          ..color = dotColor
+          ..style = PaintingStyle.fill;
+        
+        canvas.drawCircle(dotOffset, dotSize, dotPaintWithColor);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CirclesPainter oldDelegate) {
+    return oldDelegate.isRunning != isRunning || oldDelegate.color != color;
   }
 } 

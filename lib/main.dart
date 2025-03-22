@@ -17,6 +17,9 @@ import 'package:tiklarm/services/settings_service.dart';
 import 'package:tiklarm/services/notification_service.dart';
 import 'package:tiklarm/services/sound_service.dart';
 import 'package:tiklarm/services/vibration_service.dart';
+import 'package:tiklarm/providers/stopwatch_provider.dart';
+import 'package:tiklarm/screens/timer_screen.dart';
+import 'package:tiklarm/screens/stopwatch_screen.dart';
 
 // Global navigator key for accessing the context from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -80,11 +83,86 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: themeService),
         ChangeNotifierProvider.value(value: settingsService),
-        ChangeNotifierProvider(create: (_) => AlarmProvider()),
+        ChangeNotifierProvider(create: (_) => AlarmProvider()..loadAlarms()),
+        ChangeNotifierProvider(create: (_) => StopwatchProvider()),
       ],
       child: const MyApp(),
     ),
   );
+}
+
+// Custom page transitions
+class CustomPageTransition extends PageRouteBuilder {
+  final Widget page;
+  final TransitionType transitionType;
+  
+  CustomPageTransition({
+    required this.page, 
+    this.transitionType = TransitionType.fadeAndSlide,
+  }) : super(
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      switch (transitionType) {
+        case TransitionType.fade:
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        case TransitionType.scale:
+          return ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
+            child: FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+          );
+        case TransitionType.slide:
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
+            child: child,
+          );
+        case TransitionType.fadeAndSlide:
+        default:
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.05),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                ),
+              ),
+              child: child,
+            ),
+          );
+      }
+    },
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
+  );
+}
+
+enum TransitionType {
+  fade,
+  scale,
+  slide,
+  fadeAndSlide,
 }
 
 class MyApp extends StatefulWidget {
@@ -143,6 +221,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         useMaterial3: true,
         brightness: Brightness.light,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -159,9 +246,56 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         useMaterial3: true,
         brightness: Brightness.dark,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
       themeMode: themeService.themeMode,
       home: const HomeScreen(),
+      onGenerateRoute: (settings) {
+        // Default transition animation
+        Widget page;
+        
+        if (settings.name == '/alarm_list') {
+          page = const AlarmListScreen();
+        } else if (settings.name == '/stopwatch') {
+          page = const StopwatchScreen();
+        } else if (settings.name == '/timer') {
+          page = const TimerScreen();
+        } else if (settings.name == '/settings') {
+          page = const SettingsScreen();
+        } else {
+          return null; // Let the default route handler deal with it
+        }
+        
+        return PageRouteBuilder(
+          settings: settings,
+          pageBuilder: (_, __, ___) => page,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+            
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var offsetAnimation = animation.drive(tween);
+            
+            return SlideTransition(
+              position: offsetAnimation,
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        );
+      },
     );
   }
 }

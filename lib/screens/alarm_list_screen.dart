@@ -7,6 +7,7 @@ import 'package:tiklarm/widgets/alarm_list_item.dart';
 import 'package:intl/intl.dart';
 import 'package:tiklarm/utils/platform_utils.dart';
 import 'package:tiklarm/services/timer_service.dart';
+import 'dart:math' as math;
 
 class AlarmListScreen extends StatelessWidget {
   final bool showAppBar;
@@ -278,20 +279,46 @@ class _AlarmListContent extends StatelessWidget {
                           ),
                         )
                       : Expanded(
-                          child: ListView.builder(
+                          child: AnimatedList(
+                            key: GlobalKey<AnimatedListState>(),
                             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                             physics: const BouncingScrollPhysics(),
-                            itemCount: alarmProvider.alarms.length,
-                            itemBuilder: (context, index) {
+                            initialItemCount: alarmProvider.alarms.length,
+                            itemBuilder: (context, index, animation) {
                               final alarm = alarmProvider.alarms[index];
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: AlarmListItem(
-                                  alarm: alarm,
-                                  onToggle: (isActive) =>
-                                      alarmProvider.toggleAlarm(alarm.id, isActive),
-                                  onTap: () => _editAlarm(context, alarm),
-                                  onDelete: () => alarmProvider.deleteAlarm(alarm.id),
+                              
+                              // Calculate a staggered animation delay based on index
+                              final staggeredAnimation = Tween<double>(
+                                begin: 0.0,
+                                end: 1.0,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: animation,
+                                  curve: Interval(
+                                    0.05 * math.min(index, 10), // Cap the delay at 10 items
+                                    1.0,
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                ),
+                              );
+                              
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 0.2),
+                                  end: Offset.zero,
+                                ).animate(staggeredAnimation),
+                                child: FadeTransition(
+                                  opacity: staggeredAnimation,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: AlarmListItem(
+                                      alarm: alarm,
+                                      onToggle: (isActive) =>
+                                          alarmProvider.toggleAlarm(alarm.id, isActive),
+                                      onTap: () => _editAlarm(context, alarm),
+                                      onDelete: () => alarmProvider.deleteAlarm(alarm.id),
+                                    ),
+                                  ),
                                 ),
                               );
                             },
@@ -301,15 +328,25 @@ class _AlarmListContent extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 0, right: 5),
+      floatingActionButton: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        margin: const EdgeInsets.only(bottom: 5, right: 5),
         child: FloatingActionButton.extended(
           onPressed: () => _addAlarm(context),
-          label: const Text('Add Alarm'),
-          icon: const Icon(Icons.add),
+          label: Text(
+            'Add Alarm',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          icon: const Icon(Icons.add, size: 20),
           elevation: 4,
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          extendedPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

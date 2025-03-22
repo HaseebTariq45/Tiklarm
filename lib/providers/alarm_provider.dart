@@ -14,6 +14,22 @@ class AlarmProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   List<AlarmModel> get alarms => List.unmodifiable(_alarms);
 
+  // Method to load alarms - used when initializing the provider
+  Future<void> loadAlarms() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      await _alarmService.init();
+      _alarms = _alarmService.getAlarms();
+    } catch (e) {
+      debugPrint('Error loading alarms: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _initAlarms() async {
     try {
       await _alarmService.init();
