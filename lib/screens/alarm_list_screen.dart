@@ -6,6 +6,7 @@ import 'package:tiklarm/screens/alarm_edit_screen.dart';
 import 'package:tiklarm/widgets/alarm_list_item.dart';
 import 'package:intl/intl.dart';
 import 'package:tiklarm/utils/platform_utils.dart';
+import 'package:tiklarm/services/timer_service.dart';
 
 class AlarmListScreen extends StatelessWidget {
   final bool showAppBar;
@@ -232,15 +233,7 @@ class AlarmListScreen extends StatelessWidget {
   }
 
   String _formatTime(TimeOfDay time) {
-    final now = DateTime.now();
-    final dt = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      time.hour,
-      time.minute,
-    );
-    final format = DateFormat.jm(); // e.g. 9:30 AM
-    return format.format(dt);
+    // Use TimerService for consistent time formatting across the app
+    return TimerService().formatTimeOfDay(time);
   }
 } 

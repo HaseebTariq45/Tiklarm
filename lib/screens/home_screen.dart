@@ -3,49 +3,55 @@ import 'package:tiklarm/screens/alarm_list_screen.dart';
 import 'package:tiklarm/screens/world_clock_screen.dart';
 import 'package:tiklarm/screens/timer_screen.dart';
 import 'package:tiklarm/screens/stopwatch_screen.dart';
+import 'package:tiklarm/screens/settings_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tiklarm/services/theme_service.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int _selectedIndex = 0;
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = const [
+    AlarmListScreen(showAppBar: false),
+    WorldClockScreen(),
+    TimerScreen(),
+    StopwatchScreen(),
+  ];
+
+  final List<String> _titles = [
+    'Tiklarm',
+    'World Clock',
+    'Timer',
+    'Stopwatch',
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: _screens.length, vsync: this);
     _tabController.addListener(() {
-      setState(() {
-        _selectedIndex = _tabController.index;
-      });
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _selectedIndex = _tabController.index;
+        });
+      }
     });
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-  
-  final List<Widget> _screens = [
-    const AlarmListScreen(showAppBar: false),
-    const WorldClockScreen(),
-    const TimerScreen(),
-    const StopwatchScreen(),
-  ];
-  
-  final List<String> _titles = [
-    'Alarm',
-    'World Clock',
-    'Timer',
-    'Stopwatch',
-  ];
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,7 +71,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // Show settings page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              ).then((_) {
+                // Refresh theme settings after returning from settings screen
+                ThemeService().refreshFromPrefs();
+              });
             },
           ),
         ],

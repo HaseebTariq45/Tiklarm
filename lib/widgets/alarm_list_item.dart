@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tiklarm/models/alarm_model.dart';
-import 'package:intl/intl.dart';
+import 'package:tiklarm/services/timer_service.dart';
 
 class AlarmListItem extends StatelessWidget {
   final AlarmModel alarm;
@@ -21,6 +21,7 @@ class AlarmListItem extends StatelessWidget {
     final isActive = alarm.isActive;
     final brightness = Theme.of(context).brightness;
     final isDark = brightness == Brightness.dark;
+    final timerService = TimerService();
     
     return Dismissible(
       key: Key(alarm.id),
@@ -100,7 +101,7 @@ class AlarmListItem extends StatelessWidget {
                           textBaseline: TextBaseline.alphabetic,
                           children: [
                             Text(
-                              _formatTime(alarm.time),
+                              timerService.formatTimeOfDay(alarm.time),
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
@@ -110,19 +111,6 @@ class AlarmListItem extends StatelessWidget {
                                         : Theme.of(context).colorScheme.primary)
                                     : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                                 letterSpacing: -1,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              DateFormat('a').format(DateTime(2022, 1, 1, alarm.time.hour, alarm.time.minute)),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: isActive
-                                    ? (isDark 
-                                        ? Theme.of(context).colorScheme.primary.withOpacity(0.8) 
-                                        : Theme.of(context).colorScheme.primary.withOpacity(0.8))
-                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                               ),
                             ),
                           ],
@@ -268,21 +256,6 @@ class AlarmListItem extends StatelessWidget {
     );
   }
 
-  String _formatTime(TimeOfDay time) {
-    final now = DateTime.now();
-    final dt = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      time.hour,
-      time.minute,
-    );
-    
-    // Use hour:minute format, AM/PM will be shown separately
-    final format = DateFormat('h:mm');
-    return format.format(dt);
-  }
-
   String _getRepeatText() {
     final List<String> daysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
@@ -320,12 +293,13 @@ class AlarmListItem extends StatelessWidget {
   }
 
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
+    final timerService = TimerService();
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Alarm'),
         content: Text(
-          'Are you sure you want to delete the alarm set for ${_formatTime(alarm.time)}?',
+          'Are you sure you want to delete the alarm set for ${timerService.formatTimeOfDay(alarm.time)}?',
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

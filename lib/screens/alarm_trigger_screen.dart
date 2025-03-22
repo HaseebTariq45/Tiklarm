@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tiklarm/models/alarm_model.dart';
 import 'package:tiklarm/providers/alarm_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:tiklarm/services/timer_service.dart';
 
 class AlarmTriggerScreen extends StatelessWidget {
   final AlarmModel alarm;
@@ -14,11 +15,8 @@ class AlarmTriggerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeFormat = DateFormat.jm();
-    final now = DateTime.now();
-    final formattedTime = timeFormat.format(
-      DateTime(now.year, now.month, now.day, alarm.time.hour, alarm.time.minute)
-    );
+    final timerService = TimerService();
+    final formattedTime = timerService.formatTimeOfDay(alarm.time);
     
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,

@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:tiklarm/services/timer_service.dart';
+import 'package:tiklarm/services/notification_service.dart';
+import 'package:tiklarm/services/sound_service.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({Key? key}) : super(key: key);
@@ -8,28 +12,73 @@ class TimerScreen extends StatefulWidget {
   State<TimerScreen> createState() => _TimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStateMixin {
+class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin {
   int _hours = 0;
   int _minutes = 0;
   int _seconds = 0;
   int _totalSeconds = 0;
   bool _isRunning = false;
+  bool _isCompleted = false;
   Timer? _timer;
-  late AnimationController _animationController;
+  
+  // Controllers for animations
+  late AnimationController _pulseController;
+  late AnimationController _rotationController;
+  late AnimationController _waveController;
+  late Animation<double> _pulseAnimation;
+  
+  // Quick time presets in seconds
+  final List<Map<String, dynamic>> _presets = [
+    {'label': '1 min', 'seconds': 60},
+    {'label': '5 min', 'seconds': 300},
+    {'label': '10 min', 'seconds': 600},
+    {'label': '15 min', 'seconds': 900},
+    {'label': '30 min', 'seconds': 1800},
+    {'label': '1 hour', 'seconds': 3600},
+  ];
+  
+  final TimerService _timerService = TimerService();
+  final NotificationService _notificationService = NotificationService();
+  final SoundService _soundService = SoundService();
   
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+    
+    // Pulse animation for the timer when running
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(seconds: 2),
     );
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    
+    // Rotation animation for the circular progress
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+    
+    // Wave animation for the background
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+    
+    // Start background animation
+    _waveController.repeat();
+    _rotationController.repeat();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _animationController.dispose();
+    _pulseController.dispose();
+    _rotationController.dispose();
+    _waveController.dispose();
+    _soundService.stopSound();
+    _timerService.handleWakelock(false);
     super.dispose();
   }
 
@@ -39,14 +88,15 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     
     setState(() {
       _isRunning = true;
+      _isCompleted = false;
       _totalSeconds = totalSeconds;
-      _animationController.repeat(reverse: true);
+      _pulseController.repeat(reverse: true);
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_totalSeconds <= 0) {
         _cancelTimer();
-        _showTimerCompleteDialog();
+        _onTimerComplete();
       } else {
         setState(() {
           _totalSeconds--;
@@ -56,6 +106,8 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
         });
       }
     });
+
+    _timerService.handleWakelock(true);
   }
 
   void _pauseTimer() {
@@ -63,9 +115,11 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
       _timer!.cancel();
       setState(() {
         _isRunning = false;
-        _animationController.stop();
+        _pulseController.stop();
       });
     }
+
+    _timerService.handleWakelock(false);
   }
 
   void _cancelTimer() {
@@ -73,9 +127,11 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
       _timer!.cancel();
       setState(() {
         _isRunning = false;
-        _animationController.stop();
+        _pulseController.stop();
       });
     }
+
+    _timerService.handleWakelock(false);
   }
 
   void _resetTimer() {
@@ -85,6 +141,29 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
       _minutes = 0;
       _seconds = 0;
       _totalSeconds = 0;
+      _isCompleted = false;
+    });
+
+    _timerService.handleWakelock(false);
+  }
+
+  void _onTimerComplete() {
+    setState(() {
+      _isCompleted = true;
+    });
+    _pulseController.stop();
+    _timerService.handleWakelock(false);
+    _notificationService.showTimerCompleteNotification();
+    _soundService.playTimerCompleteSound();
+    _showTimerCompleteDialog();
+  }
+
+  void _applyPreset(int seconds) {
+    setState(() {
+      _totalSeconds = seconds;
+      _hours = seconds ~/ 3600;
+      _minutes = (seconds % 3600) ~/ 60;
+      _seconds = seconds % 60;
     });
   }
 
@@ -92,33 +171,71 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Column(
           children: [
             Icon(
               Icons.check_circle,
               color: Theme.of(context).colorScheme.primary,
+              size: 48,
             ),
-            const SizedBox(width: 10),
-            const Text('Timer Complete'),
-          ],
-        ),
-        content: const Text('Your timer has finished!'),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 16),
+            const Text(
+              'Timer Complete!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
               ),
             ),
-            child: const Text('OK'),
-          ),
-        ],
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Your timer has finished.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Restart'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _startTimer();
+                  },
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.check),
+                  label: const Text('Done'),
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       ),
     );
   }
@@ -126,253 +243,372 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final progress = _totalSeconds > 0 
+        ? 1 - ((_hours * 3600 + _minutes * 60 + _seconds) / _totalSeconds) 
+        : 0.0;
     
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Timer display
-            AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: _isRunning
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1 + _animationController.value * 0.05)
-                        : Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(_isRunning ? 0.2 : 0.1),
-                        blurRadius: 12,
-                        spreadRadius: _isRunning ? 2 : 0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(
-                      color: _isRunning
-                          ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildTimerSegment(_hours, 'HRS'),
-                      _buildTimerDivider(),
-                      _buildTimerSegment(_minutes, 'MIN'),
-                      _buildTimerDivider(),
-                      _buildTimerSegment(_seconds, 'SEC'),
-                    ],
-                  ),
-                );
-              },
-            ),
-            
-            const SizedBox(height: 40),
-            
-            // Time picker (only visible when not running)
-            if (!_isRunning)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-                      blurRadius: 10,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildTimePicker(
-                      value: _hours,
-                      label: 'Hours',
-                      maxValue: 23,
-                      onChanged: (value) => setState(() => _hours = value),
-                    ),
-                    _buildTimePicker(
-                      value: _minutes,
-                      label: 'Minutes',
-                      maxValue: 59,
-                      onChanged: (value) => setState(() => _minutes = value),
-                    ),
-                    _buildTimePicker(
-                      value: _seconds,
-                      label: 'Seconds',
-                      maxValue: 59,
-                      onChanged: (value) => setState(() => _seconds = value),
-                    ),
-                  ],
-                ),
+      backgroundColor: colorScheme.background,
+      body: AnimatedBuilder(
+        animation: _waveController,
+        builder: (context, child) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: isDark
+                    ? [
+                        colorScheme.background,
+                        colorScheme.background,
+                        colorScheme.primary.withOpacity(0.05 + 0.03 * math.sin(_waveController.value * math.pi)),
+                      ]
+                    : [
+                        colorScheme.background,
+                        colorScheme.primary.withOpacity(0.03 + 0.02 * math.sin(_waveController.value * math.pi)),
+                        colorScheme.background,
+                      ],
               ),
-            
-            const SizedBox(height: 40),
-            
-            // Controls
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildControlButton(
-                  icon: Icons.refresh,
-                  label: 'Reset',
-                  color: Colors.red,
-                  onPressed: _totalSeconds > 0 ? _resetTimer : null,
-                ),
-                const SizedBox(width: 20),
-                _isRunning
-                    ? _buildControlButton(
-                        icon: Icons.pause,
-                        label: 'Pause',
-                        color: Colors.orange,
-                        size: 1.3,
-                        onPressed: _pauseTimer,
-                      )
-                    : _buildControlButton(
-                        icon: Icons.play_arrow,
-                        label: 'Start',
-                        color: Colors.green,
-                        size: 1.3,
-                        onPressed: _hours == 0 && _minutes == 0 && _seconds == 0
-                            ? null
-                            : _startTimer,
-                      ),
-              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildTimerDivider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        ':',
-        style: TextStyle(
-          fontSize: 40,
-          fontWeight: FontWeight.bold,
-          color: _isRunning
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.onSurface,
-        ),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top section with title - removing this redundant title
+                  const SizedBox(height: 10),
+                  
+                  // Timer display with animations
+                  Expanded(
+                    flex: 4,
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _pulseAnimation,
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scale: _isRunning ? _pulseAnimation.value : 1.0,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Outer circle with rotating gradient
+                                AnimatedBuilder(
+                                  animation: _rotationController,
+                                  builder: (context, child) {
+                                    return Transform.rotate(
+                                      angle: _rotationController.value * 2 * math.pi,
+                                      child: Container(
+                                        width: 220,
+                                        height: 220,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: SweepGradient(
+                                            colors: [
+                                              colorScheme.primary.withOpacity(0.1),
+                                              colorScheme.primary.withOpacity(0.3),
+                                              colorScheme.primary.withOpacity(0.1),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                
+                                // Progress indicator
+                                SizedBox(
+                                  width: 200,
+                                  height: 200,
+                                  child: CircularProgressIndicator(
+                                    value: progress,
+                                    strokeWidth: 8,
+                                    backgroundColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      _isCompleted
+                                          ? Colors.green
+                                          : (_isRunning
+                                              ? colorScheme.primary
+                                              : colorScheme.primary.withOpacity(0.7)),
+                                    ),
+                                  ),
+                                ),
+                                
+                                // Inner circle with time display
+                                Container(
+                                  width: 180,
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: colorScheme.surface,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: colorScheme.primary.withOpacity(0.2),
+                                        blurRadius: 20,
+                                        spreadRadius: 0,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        // Time display
+                                        Text(
+                                          '${_hours.toString().padLeft(2, '0')}:${_minutes.toString().padLeft(2, '0')}:${_seconds.toString().padLeft(2, '0')}',
+                                          style: TextStyle(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1,
+                                            color: _isCompleted
+                                                ? Colors.green
+                                                : (_isRunning
+                                                    ? colorScheme.primary
+                                                    : colorScheme.onSurface),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Status text
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _isCompleted
+                                                ? Colors.green.withOpacity(0.1)
+                                                : (_isRunning 
+                                                    ? colorScheme.primary.withOpacity(0.1) 
+                                                    : colorScheme.surfaceVariant.withOpacity(0.3)),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            _isCompleted
+                                                ? 'Completed'
+                                                : (_isRunning ? 'Running' : 'Ready'),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: _isCompleted
+                                                  ? Colors.green
+                                                  : (_isRunning
+                                                      ? colorScheme.primary
+                                                      : colorScheme.onSurface.withOpacity(0.7)),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  
+                  // Remaining controls and inputs
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      children: [
+                        // Time input section
+                        if (!_isRunning)
+                          Container(
+                            margin: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildTimeInput('Hours', _hours, (value) {
+                                      setState(() => _hours = value.clamp(0, 23));
+                                    }),
+                                    _buildTimeInput('Minutes', _minutes, (value) {
+                                      setState(() => _minutes = value.clamp(0, 59));
+                                    }),
+                                    _buildTimeInput('Seconds', _seconds, (value) {
+                                      setState(() => _seconds = value.clamp(0, 59));
+                                    }),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        // Quick preset buttons
+                        if (!_isRunning)
+                          Container(
+                            height: 90,
+                            margin: const EdgeInsets.fromLTRB(24, 4, 24, 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Quick Presets',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Expanded(
+                                  child: ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    children: _presets.map((preset) {
+                                      return Container(
+                                        margin: const EdgeInsets.only(right: 8),
+                                        child: InkWell(
+                                          onTap: () => _applyPreset(preset['seconds']),
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Container(
+                                            width: 70,
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.primaryContainer.withOpacity(0.7),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              preset['label'],
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: colorScheme.onPrimaryContainer,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        // Expanding spacer when running
+                        if (_isRunning) 
+                          const Expanded(child: SizedBox())
+                        else
+                          const Spacer(),
+                        
+                        // Control buttons
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(32),
+                              topRight: Radius.circular(32),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, -2),
+                              ),
+                            ],
+                          ),
+                          child: SafeArea(
+                            top: false,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildControlButton(
+                                  icon: Icons.refresh,
+                                  label: 'Reset',
+                                  onPressed: _resetTimer,
+                                  color: colorScheme.error,
+                                  isOutlined: true,
+                                ),
+                                _isRunning
+                                    ? _buildControlButton(
+                                        icon: Icons.pause,
+                                        label: 'Pause',
+                                        onPressed: _pauseTimer,
+                                        color: colorScheme.tertiary,
+                                      )
+                                    : _buildControlButton(
+                                        icon: Icons.play_arrow,
+                                        label: 'Start',
+                                        onPressed: _startTimer,
+                                        color: colorScheme.primary,
+                                        isLarge: true,
+                                      ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildTimerSegment(int value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value.toString().padLeft(2, '0'),
-          style: TextStyle(
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-            color: _isRunning
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimePicker({
-    required int value,
-    required String label,
-    required int maxValue,
-    required ValueChanged<int> onChanged,
-  }) {
+  Widget _buildTimeInput(String label, int value, Function(int) onChanged) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 2),
         Container(
-          width: 80,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
+          width: 65,
           child: Column(
             children: [
-              _buildTimePickerButton(
-                icon: Icons.keyboard_arrow_up,
-                onPressed: value < maxValue
-                    ? () => onChanged(value + 1)
-                    : null,
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up),
+                onPressed: () => onChanged(value + 1),
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                iconSize: 20,
+                constraints: const BoxConstraints(minHeight: 28),
               ),
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                      width: 1,
-                    ),
-                    bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(6),
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
                 child: Text(
                   value.toString().padLeft(2, '0'),
-                  style: TextStyle(
-                    fontSize: 24,
+                  style: const TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
-              _buildTimePickerButton(
-                icon: Icons.keyboard_arrow_down,
-                onPressed: value > 0
-                    ? () => onChanged(value - 1)
-                    : null,
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down),
+                onPressed: () => onChanged(value - 1),
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                iconSize: 20,
+                constraints: const BoxConstraints(minHeight: 28),
               ),
             ],
           ),
@@ -380,61 +616,51 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
       ],
     );
   }
-  
-  Widget _buildTimePickerButton({
-    required IconData icon,
-    required VoidCallback? onPressed,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        width: double.infinity,
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          color: onPressed != null
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-        ),
-      ),
-    );
-  }
-  
+
   Widget _buildControlButton({
     required IconData icon,
     required String label,
+    required VoidCallback onPressed,
     required Color color,
-    required VoidCallback? onPressed,
-    double size = 1.0,
+    bool isOutlined = false,
+    bool isLarge = false,
   }) {
-    return Column(
-      children: [
-        ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: color.withOpacity(0.3),
-            disabledForegroundColor: Colors.white.withOpacity(0.5),
-            elevation: onPressed != null ? 6 : 0,
-            padding: EdgeInsets.all(16 * size),
-            shape: const CircleBorder(),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(isLarge ? 45 : 35),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: isOutlined ? Colors.transparent : color.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(isLarge ? 45 : 35),
+            border: isOutlined ? Border.all(color: color, width: 2) : null,
           ),
-          child: Icon(icon, size: 32 * size),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: onPressed != null
-                ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          padding: EdgeInsets.symmetric(
+            horizontal: isLarge ? 28 : 20,
+            vertical: isLarge ? 14 : 12,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isOutlined ? color : Colors.white,
+                size: isLarge ? 26 : 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: isLarge ? 15 : 13,
+                  fontWeight: FontWeight.bold,
+                  color: isOutlined ? color : Colors.white,
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 } 

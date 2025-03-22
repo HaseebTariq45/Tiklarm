@@ -4,6 +4,7 @@ import 'package:tiklarm/models/alarm_model.dart';
 import 'package:tiklarm/providers/alarm_provider.dart';
 import 'package:tiklarm/widgets/day_selector.dart';
 import 'package:intl/intl.dart';
+import 'package:tiklarm/services/timer_service.dart';
 
 class AlarmEditScreen extends StatefulWidget {
   final AlarmModel alarm;
@@ -467,16 +468,8 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
   }
 
   String _formatTime(TimeOfDay time) {
-    final now = DateTime.now();
-    final dt = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      time.hour,
-      time.minute,
-    );
-    final format = DateFormat.Hm(); // e.g. 09:30
-    return format.format(dt);
+    // Use TimerService for consistent time formatting
+    return TimerService().formatTimeOfDay(time);
   }
 
   String _formatSoundName(String soundPath) {

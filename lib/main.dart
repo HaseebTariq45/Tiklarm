@@ -10,37 +10,44 @@ import 'package:alarm/utils/alarm_set.dart';
 import 'package:tiklarm/utils/platform_utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:tiklarm/screens/home_screen.dart';
+import 'screens/settings_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tiklarm/services/theme_service.dart';
+import 'package:tiklarm/services/settings_service.dart';
+import 'package:tiklarm/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialize services
+  final themeService = ThemeService();
+  await themeService.initialize();
+  
+  final settingsService = SettingsService();
+  await settingsService.initialize();
+  
+  // Initialize notifications
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+  
   // Configure logging
   if (kDebugMode) {
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      debugPrint('Flutter error: ${details.exception}');
-      debugPrint('Stack trace: ${details.stack}');
-    };
-  }
-  
-  // Initialize the alarm plugin
-  if (PlatformUtils.isNativeAlarmsSupported) {
-    try {
-      await Alarm.init();
-      
-      // Handle alarm callback when app is launched from an alarm
-      Alarm.ringing.listen((alarmSet) {
-        // Find the alarm with the given ID and show the trigger screen
-        if (alarmSet.alarms.isNotEmpty) {
-          _handleAlarmRing(alarmSet.alarms.first.id);
-        }
-      });
-    } catch (e) {
-      debugPrint('Error initializing alarm: $e');
+    if (kIsWeb) {
+      // Web-specific configuration
+    } else {
+      // Native-specific configuration
     }
   }
   
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeService),
+        ChangeNotifierProvider.value(value: settingsService),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 // Global navigator key for accessing the context from anywhere
@@ -66,9 +73,11 @@ void _handleAlarmRing(int alarmId) {
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
-
+  
   @override
   Widget build(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AlarmProvider()),
@@ -78,65 +87,36 @@ class MyApp extends StatelessWidget {
         title: 'Tiklarm',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          primarySwatch: Colors.indigo,
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF3F51B5),
-            primary: const Color(0xFF3F51B5),
-            secondary: const Color(0xFFFF4081),
             brightness: Brightness.light,
+            primary: const Color(0xFF3F51B5),
+            secondary: const Color(0xFF03DAC6),
           ),
-          fontFamily: 'Montserrat',
-          useMaterial3: true,
           appBarTheme: const AppBarTheme(
-            centerTitle: true,
             elevation: 0,
+            centerTitle: true,
           ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          cardTheme: CardTheme(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
+          useMaterial3: true,
+          brightness: Brightness.light,
         ),
         darkTheme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF3F51B5),
-            primary: const Color(0xFF3F51B5),
-            secondary: const Color(0xFFFF4081),
             brightness: Brightness.dark,
+            primary: const Color(0xFF3F51B5),
+            secondary: const Color(0xFF03DAC6),
             surface: const Color(0xFF1E1E1E),
             background: const Color(0xFF121212),
           ),
-          fontFamily: 'Montserrat',
-          useMaterial3: true,
           appBarTheme: const AppBarTheme(
-            centerTitle: true,
             elevation: 0,
+            centerTitle: true,
           ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          cardTheme: CardTheme(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
+          useMaterial3: true,
+          brightness: Brightness.dark,
         ),
-        themeMode: ThemeMode.system,
+        themeMode: themeService.themeMode,
         home: const HomeScreen(),
       ),
     );
