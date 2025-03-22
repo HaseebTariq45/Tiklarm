@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tiklarm/services/theme_service.dart';
 import 'package:tiklarm/services/settings_service.dart';
+import 'package:tiklarm/screens/about_us_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -54,184 +55,206 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         title: const Text('Settings'),
-        centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        elevation: 2,
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          _buildSectionHeader('Theme', colorScheme, Icons.palette_outlined),
-          
-          // System theme
-          SwitchListTile(
-            title: const Text('Use system theme'),
-            subtitle: const Text('Automatically switch between light and dark theme'),
-            value: _useSystemTheme,
-            onChanged: (value) {
-              setState(() {
-                _useSystemTheme = value;
-              });
-              // Apply theme setting immediately
-              themeService.setUseSystemTheme(value);
-            },
-            secondary: Icon(Icons.brightness_auto, color: colorScheme.primary),
-          ),
-          
-          // Dark mode (only if not using system theme)
-          if (!_useSystemTheme)
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Theme', colorScheme, Icons.palette_outlined),
+            
+            // System theme
             SwitchListTile(
-              title: const Text('Dark theme'),
-              subtitle: const Text('Use dark theme throughout the app'),
-              value: _isDarkMode,
+              title: const Text('Use system theme'),
+              subtitle: const Text('Automatically switch between light and dark theme'),
+              value: _useSystemTheme,
               onChanged: (value) {
                 setState(() {
-                  _isDarkMode = value;
+                  _useSystemTheme = value;
                 });
                 // Apply theme setting immediately
-                themeService.setDarkMode(value);
+                themeService.setUseSystemTheme(value);
               },
-              secondary: Icon(_isDarkMode ? Icons.dark_mode : Icons.light_mode, color: colorScheme.primary),
+              secondary: Icon(Icons.brightness_auto, color: colorScheme.primary),
             ),
-          
-          _buildSectionHeader('Time', colorScheme, Icons.access_time),
-          
-          // Time format
-          ListTile(
-            title: const Text('Time format'),
-            subtitle: Text(_timeFormat == '24h' ? '24-hour format' : '12-hour format'),
-            leading: Icon(Icons.schedule, color: colorScheme.primary),
-            trailing: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: '12h', label: Text('12h')),
-                ButtonSegment(value: '24h', label: Text('24h')),
-              ],
-              selected: {_timeFormat},
-              onSelectionChanged: (Set<String> selection) {
-                final value = selection.first;
-                setState(() {
-                  _timeFormat = value;
-                });
-                // Apply time format setting immediately
-                settingsService.setTimeFormat(value);
-              },
-            ),
-          ),
-          
-          _buildSectionHeader('Alarm', colorScheme, Icons.alarm),
-          
-          // Alarm sound
-          ListTile(
-            title: const Text('Alarm sound'),
-            subtitle: Text(_alarmSound),
-            leading: Icon(Icons.music_note, color: colorScheme.primary),
-            trailing: DropdownButton<String>(
-              value: _alarmSound,
-              onChanged: (String? newValue) {
-                if (newValue != null) {
+            
+            // Dark mode (only if not using system theme)
+            if (!_useSystemTheme)
+              SwitchListTile(
+                title: const Text('Dark theme'),
+                subtitle: const Text('Use dark theme throughout the app'),
+                value: _isDarkMode,
+                onChanged: (value) {
                   setState(() {
-                    _alarmSound = newValue;
+                    _isDarkMode = value;
                   });
-                  // Apply alarm sound change immediately
-                  settingsService.setAlarmSound(newValue);
-                }
-              },
-              underline: Container(),
-              items: settingsService.availableAlarmSounds
-                  .map((sound) => DropdownMenuItem(
-                        value: sound,
-                        child: Text(sound),
-                      ))
-                  .toList(),
+                  // Apply theme setting immediately
+                  themeService.setDarkMode(value);
+                },
+                secondary: Icon(_isDarkMode ? Icons.dark_mode : Icons.light_mode, color: colorScheme.primary),
+              ),
+            
+            _buildSectionHeader('Time', colorScheme, Icons.access_time),
+            
+            // Time format
+            ListTile(
+              title: const Text('Time format'),
+              subtitle: Text(_timeFormat == '24h' ? '24-hour format' : '12-hour format'),
+              leading: Icon(Icons.schedule, color: colorScheme.primary),
+              trailing: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: '12h', label: Text('12h')),
+                  ButtonSegment(value: '24h', label: Text('24h')),
+                ],
+                selected: {_timeFormat},
+                onSelectionChanged: (Set<String> selection) {
+                  final value = selection.first;
+                  setState(() {
+                    _timeFormat = value;
+                  });
+                  // Apply time format setting immediately
+                  settingsService.setTimeFormat(value);
+                },
+              ),
             ),
-          ),
-          
-          // Volume slider
-          ListTile(
-            title: Text('Alarm volume: ${(_alarmVolume * 100).round()}%'),
-            leading: Icon(Icons.volume_up, color: colorScheme.primary),
-            subtitle: Slider(
-              value: _alarmVolume,
-              min: 0.0,
-              max: 1.0,
-              divisions: 10,
-              activeColor: colorScheme.primary,
+            
+            _buildSectionHeader('Alarm', colorScheme, Icons.alarm),
+            
+            // Alarm sound
+            ListTile(
+              title: const Text('Alarm sound'),
+              subtitle: Text(_alarmSound),
+              leading: Icon(Icons.music_note, color: colorScheme.primary),
+              trailing: DropdownButton<String>(
+                value: _alarmSound,
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _alarmSound = newValue;
+                    });
+                    // Apply alarm sound change immediately
+                    settingsService.setAlarmSound(newValue);
+                  }
+                },
+                underline: Container(),
+                items: settingsService.availableAlarmSounds
+                    .map((sound) => DropdownMenuItem(
+                          value: sound,
+                          child: Text(sound),
+                        ))
+                    .toList(),
+              ),
+            ),
+            
+            // Volume slider
+            ListTile(
+              title: Text('Alarm volume: ${(_alarmVolume * 100).round()}%'),
+              leading: Icon(Icons.volume_up, color: colorScheme.primary),
+              subtitle: Slider(
+                value: _alarmVolume,
+                min: 0.0,
+                max: 1.0,
+                divisions: 10,
+                activeColor: colorScheme.primary,
+                onChanged: (value) {
+                  setState(() {
+                    _alarmVolume = value;
+                  });
+                },
+                onChangeEnd: (value) {
+                  // Save volume when sliding ends
+                  settingsService.setAlarmVolume(value);
+                },
+              ),
+            ),
+            
+            // Vibration setting
+            SwitchListTile(
+              title: const Text('Vibrate on alarm'),
+              subtitle: const Text('Device will vibrate when alarm goes off'),
+              value: _vibrationEnabled,
               onChanged: (value) {
                 setState(() {
-                  _alarmVolume = value;
+                  _vibrationEnabled = value;
                 });
+                // Apply vibration setting immediately
+                settingsService.setVibrationEnabled(value);
               },
-              onChangeEnd: (value) {
-                // Save volume when sliding ends
-                settingsService.setAlarmVolume(value);
-              },
+              secondary: Icon(Icons.vibration, color: colorScheme.primary),
             ),
-          ),
-          
-          // Vibration setting
-          SwitchListTile(
-            title: const Text('Vibrate on alarm'),
-            subtitle: const Text('Device will vibrate when alarm goes off'),
-            value: _vibrationEnabled,
-            onChanged: (value) {
-              setState(() {
-                _vibrationEnabled = value;
-              });
-              // Apply vibration setting immediately
-              settingsService.setVibrationEnabled(value);
-            },
-            secondary: Icon(Icons.vibration, color: colorScheme.primary),
-          ),
-          
-          _buildSectionHeader('Timer', colorScheme, Icons.timer_outlined),
-          
-          // Keep screen on setting
-          SwitchListTile(
-            title: const Text('Keep screen on'),
-            subtitle: const Text('Prevent screen from turning off while timer is running'),
-            value: _keepScreenOn,
-            onChanged: (value) {
-              setState(() {
-                _keepScreenOn = value;
-              });
-              // Apply screen on setting immediately
-              settingsService.setKeepScreenOn(value);
-            },
-            secondary: Icon(Icons.screen_lock_portrait, color: colorScheme.primary),
-          ),
-          
-          _buildSectionHeader('Notifications', colorScheme, Icons.notifications_outlined),
-          
-          // Notifications
-          SwitchListTile(
-            title: const Text('Show notifications'),
-            subtitle: const Text('Display notifications for alarms and timers'),
-            value: _showNotifications,
-            onChanged: (value) {
-              setState(() {
-                _showNotifications = value;
-              });
-              // Apply notification setting immediately
-              settingsService.setShowNotifications(value);
-            },
-            secondary: Icon(Icons.notifications, color: colorScheme.primary),
-          ),
-          
-          _buildSectionHeader('About', colorScheme, Icons.info_outline),
-          
-          // App info
-          ListTile(
-            title: const Text('Version'),
-            subtitle: const Text('1.0.0'),
-            leading: Icon(Icons.app_settings_alt, color: colorScheme.primary),
-          ),
-          
-          ListTile(
-            title: const Text('Credits'),
-            subtitle: const Text('Made with Flutter'),
-            leading: Icon(Icons.code, color: colorScheme.primary),
-          ),
-        ],
+            
+            _buildSectionHeader('Timer', colorScheme, Icons.timer_outlined),
+            
+            // Keep screen on setting
+            SwitchListTile(
+              title: const Text('Keep screen on'),
+              subtitle: const Text('Prevent screen from turning off while timer is running'),
+              value: _keepScreenOn,
+              onChanged: (value) {
+                setState(() {
+                  _keepScreenOn = value;
+                });
+                // Apply screen on setting immediately
+                settingsService.setKeepScreenOn(value);
+              },
+              secondary: Icon(Icons.screen_lock_portrait, color: colorScheme.primary),
+            ),
+            
+            _buildSectionHeader('Notifications', colorScheme, Icons.notifications_outlined),
+            
+            // Notifications
+            SwitchListTile(
+              title: const Text('Show notifications'),
+              subtitle: const Text('Display notifications for alarms and timers'),
+              value: _showNotifications,
+              onChanged: (value) {
+                setState(() {
+                  _showNotifications = value;
+                });
+                // Apply notification setting immediately
+                settingsService.setShowNotifications(value);
+              },
+              secondary: Icon(Icons.notifications, color: colorScheme.primary),
+            ),
+            
+            // About Us Section
+            _buildSectionTitle(context, 'About'),
+            Card(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text('About Us'),
+                    subtitle: const Text('App information and developer details'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutUsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -259,6 +282,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }
