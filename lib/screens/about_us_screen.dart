@@ -430,33 +430,62 @@ class AboutUsScreen extends StatelessWidget {
                                                 'haseebawang4545@gmail.com',
                                               );
                                             },
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.email_outlined,
-                                                  size: iconSize,
-                                                  color: primaryColor,
+                                            borderRadius: BorderRadius.circular(30),
+                                            child: SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              physics: const BouncingScrollPhysics(),
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: horizontalPadding * 0.5,
+                                                  vertical: 8,
                                                 ),
-                                                SizedBox(
-                                                  width: horizontalPadding * 0.4,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [
+                                                      primaryColor.withOpacity(0.8),
+                                                      primaryColor.withOpacity(0.6),
+                                                    ],
+                                                  ),
+                                                  borderRadius: BorderRadius.circular(30),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: primaryColor.withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      spreadRadius: 1,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ],
                                                 ),
-                                                Expanded(
-                                                  child: FittedBox(
-                                                    fit: BoxFit.scaleDown,
-                                                    alignment:
-                                                        Alignment.centerLeft,
-                                                    child: Text(
-                                                      'haseebawang4545@gmail.com',
-                                                      style: TextStyle(
-                                                        fontSize:
-                                                            subtitleFontSize *
-                                                            0.9,
-                                                        color: primaryColor,
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.all(6),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white.withOpacity(0.2),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      child: Icon(
+                                                        Icons.email_outlined,
+                                                        size: iconSize,
+                                                        color: Colors.white,
                                                       ),
                                                     ),
-                                                  ),
+                                                    SizedBox(width: horizontalPadding * 0.3),
+                                                    Text(
+                                                      'haseebawang4545@gmail.com',
+                                                      style: TextStyle(
+                                                        fontSize: subtitleFontSize * 0.85,
+                                                        color: Colors.white,
+                                                        fontWeight: FontWeight.w500,
+                                                        letterSpacing: 0.2,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -576,80 +605,103 @@ class AboutUsScreen extends StatelessWidget {
                                 'HaseebTariq45',
                                 'github',
                               ),
-                              child: Container(
-                                padding: EdgeInsets.all(screenWidth * 0.04),
-                                decoration: BoxDecoration(
-                                  color: isDarkMode
-                                      ? const Color(0xFF1E1E1E)
-                                      : Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isDarkMode
-                                        ? const Color(0xFF2C2C2C)
-                                        : Colors.grey[300]!,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(
-                                        screenWidth * 0.025,
-                                      ),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF333333),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.code,
-                                        color: Colors.white,
-                                        size: iconSize * 1.2,
-                                      ),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                physics: const BouncingScrollPhysics(),
+                                child: Container(
+                                  padding: EdgeInsets.all(screenWidth * 0.04),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        const Color(0xFF333333),
+                                        const Color(0xFF222222),
+                                      ],
                                     ),
-                                    SizedBox(width: horizontalPadding * 0.8),
-                                    Expanded(
-                                      child: Column(
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(
+                                          screenWidth * 0.025,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.3),
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.code,
+                                          color: Colors.white,
+                                          size: iconSize * 1.2,
+                                        ),
+                                      ),
+                                      SizedBox(width: horizontalPadding * 0.5),
+                                      Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: Alignment.centerLeft,
-                                            child: Text(
-                                              'View Project on GitHub',
-                                              style: TextStyle(
-                                                fontSize: subtitleFontSize,
-                                                fontWeight: FontWeight.bold,
-                                                color: Theme.of(context).colorScheme.onSurface,
-                                              ),
+                                          Text(
+                                            'View Project on GitHub',
+                                            style: TextStyle(
+                                              fontSize: subtitleFontSize,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                              letterSpacing: 0.5,
+                                              height: 1.0,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.black.withOpacity(0.5),
+                                                  blurRadius: 2,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                           SizedBox(
                                             height: verticalPadding * 0.2,
                                           ),
-                                          FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: Alignment.centerLeft,
-                                            child: Text(
-                                              '@HaseebTariq45',
-                                              style: TextStyle(
-                                                fontSize:
-                                                    subtitleFontSize * 0.8,
-                                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                                              ),
+                                          Text(
+                                            '@HaseebTariq45',
+                                            style: TextStyle(
+                                              fontSize: subtitleFontSize * 0.8,
+                                              color: Colors.white.withOpacity(0.7),
+                                              letterSpacing: 0.3,
+                                              height: 1.0,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: iconSize,
-                                      color: isDarkMode
-                                          ? Colors.grey[400]
-                                          : Colors.grey,
-                                    ),
-                                  ],
+                                      SizedBox(width: horizontalPadding * 0.5),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: EdgeInsets.all(screenWidth * 0.02),
+                                        child: Icon(
+                                          Icons.arrow_forward,
+                                          size: iconSize,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -795,22 +847,46 @@ class AboutUsScreen extends StatelessWidget {
     required BoxConstraints constraints,
   }) {
     final double iconSize = constraints.maxWidth * 0.05;
-    final double fontSize = constraints.maxWidth * 0.03;
+    final double fontSize = constraints.maxWidth * 0.028;
+    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: EdgeInsets.all(constraints.maxWidth * 0.02),
+        padding: EdgeInsets.symmetric(
+          horizontal: constraints.maxWidth * 0.01,
+          vertical: constraints.maxWidth * 0.02,
+        ),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.7),
+              color.withOpacity(0.4),
+            ],
+          ),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+          border: Border.all(color: color, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 8,
+              spreadRadius: 1,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: iconSize),
+            Icon(
+              icon, 
+              color: Colors.white,
+              size: iconSize * 1.2,
+            ),
             SizedBox(height: constraints.maxHeight * 0.01),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -818,8 +894,17 @@ class AboutUsScreen extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontSize: fontSize,
-                  fontWeight: FontWeight.w500,
-                  color: textColor ?? color,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                  height: 1.0,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
             ),
