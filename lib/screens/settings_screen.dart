@@ -47,29 +47,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _showNotifications = settingsService.showNotifications;
   }
 
-  Future<void> _saveSettings() async {
-    final themeService = Provider.of<ThemeService>(context, listen: false);
-    final settingsService = Provider.of<SettingsService>(context, listen: false);
-    
-    // Save theme settings
-    await themeService.setUseSystemTheme(_useSystemTheme);
-    if (!_useSystemTheme) {
-      await themeService.setDarkMode(_isDarkMode);
-    }
-    
-    // Save other settings
-    await settingsService.setAlarmSound(_alarmSound);
-    await settingsService.setAlarmVolume(_alarmVolume);
-    await settingsService.setVibrationEnabled(_vibrationEnabled);
-    await settingsService.setKeepScreenOn(_keepScreenOn);
-    await settingsService.setTimeFormat(_timeFormat);
-    await settingsService.setShowNotifications(_showNotifications);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -89,19 +66,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               themeService.toggleThemeMode();
             },
-          ),
-          // Save button with better styling
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton.icon(
-              onPressed: _saveSettings,
-              icon: const Icon(Icons.save),
-              label: const Text('Save'),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: colorScheme.onPrimaryContainer,
-                backgroundColor: colorScheme.primaryContainer,
-              ),
-            ),
           ),
         ],
       ),
@@ -197,6 +161,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() {
                     _alarmSound = newValue;
                   });
+                  // Apply alarm sound change immediately
+                  settingsService.setAlarmSound(newValue);
                 }
               },
               underline: Container(),
@@ -224,6 +190,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _alarmVolume = value;
                 });
               },
+              onChangeEnd: (value) {
+                // Save volume when sliding ends
+                settingsService.setAlarmVolume(value);
+              },
             ),
           ),
           
@@ -236,6 +206,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() {
                 _vibrationEnabled = value;
               });
+              // Apply vibration setting immediately
+              settingsService.setVibrationEnabled(value);
             },
             secondary: Icon(Icons.vibration, color: colorScheme.primary),
           ),
@@ -251,21 +223,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() {
                 _keepScreenOn = value;
               });
+              // Apply screen on setting immediately
+              settingsService.setKeepScreenOn(value);
             },
             secondary: Icon(Icons.screen_lock_portrait, color: colorScheme.primary),
           ),
           
           _buildSectionHeader('Notifications', colorScheme, Icons.notifications_outlined),
           
-          // Show notifications setting
+          // Notifications
           SwitchListTile(
             title: const Text('Show notifications'),
-            subtitle: const Text('Display notifications when timer completes'),
+            subtitle: const Text('Display notifications for alarms and timers'),
             value: _showNotifications,
             onChanged: (value) {
               setState(() {
                 _showNotifications = value;
               });
+              // Apply notification setting immediately
+              settingsService.setShowNotifications(value);
             },
             secondary: Icon(Icons.notifications, color: colorScheme.primary),
           ),
