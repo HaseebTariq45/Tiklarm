@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:tiklarm/services/settings_service.dart';
+import 'package:tiklarm/services/timer_service.dart';
 
 class WorldClockScreen extends StatefulWidget {
   const WorldClockScreen({Key? key}) : super(key: key);
@@ -12,6 +15,7 @@ class WorldClockScreen extends StatefulWidget {
 class _WorldClockScreenState extends State<WorldClockScreen> {
   late Timer _timer;
   DateTime _now = DateTime.now();
+  late TimerService _timerService;
   
   final List<Map<String, dynamic>> _worldClocks = [
     {
@@ -67,16 +71,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   @override
   void initState() {
     super.initState();
-    _startTimer();
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  void _startTimer() {
+    _timerService = TimerService();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _now = DateTime.now();
@@ -85,8 +80,24 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   }
 
   @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  // Format time based on user's preference (12h or 24h)
+  String _formatTime(DateTime dateTime) {
+    // Extract hour and minute from dateTime to create a TimeOfDay
+    final timeOfDay = TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+    
+    // Use TimerService for consistent formatting
+    return _timerService.formatTimeOfDay(timeOfDay);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
     
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
@@ -140,7 +151,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   }
   
   Widget _buildLocalTimeCard(bool isDark) {
-    final localTime = DateFormat('HH:mm:ss').format(_now);
+    final localTime = _formatTime(_now);
     final localDate = DateFormat('EEEE, d MMMM y').format(_now);
     
     return Container(
@@ -240,7 +251,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     required Color color,
     required bool isDark,
   }) {
-    final time = DateFormat('HH:mm').format(dateTime);
+    final time = _formatTime(dateTime);
     final date = DateFormat('EEE, d MMM').format(dateTime);
     final isNight = dateTime.hour >= 18 || dateTime.hour < 6;
     

@@ -90,10 +90,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               themeService.toggleThemeMode();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _saveSettings,
-            tooltip: 'Save settings',
+          // Save button with better styling
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ElevatedButton.icon(
+              onPressed: _saveSettings,
+              icon: const Icon(Icons.save),
+              label: const Text('Save'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: colorScheme.onPrimaryContainer,
+                backgroundColor: colorScheme.primaryContainer,
+              ),
+            ),
           ),
         ],
       ),
@@ -148,12 +156,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() {
                     _timeFormat = newValue;
                   });
+                  // Apply time format change immediately
+                  settingsService.setTimeFormat(newValue);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Time format updated to ${newValue == '24h' ? '24-hour' : '12-hour'} format'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
                 }
               },
+              icon: Icon(Icons.arrow_drop_down, color: colorScheme.primary),
+              elevation: 2,
+              borderRadius: BorderRadius.circular(8),
               underline: Container(),
               items: const [
-                DropdownMenuItem(value: '12h', child: Text('12h')),
-                DropdownMenuItem(value: '24h', child: Text('24h')),
+                DropdownMenuItem(
+                  value: '12h', 
+                  child: Text('12h', style: TextStyle(fontWeight: FontWeight.w500)),
+                ),
+                DropdownMenuItem(
+                  value: '24h', 
+                  child: Text('24h', style: TextStyle(fontWeight: FontWeight.w500)),
+                ),
               ],
             ),
           ),
