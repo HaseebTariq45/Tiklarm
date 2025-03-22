@@ -18,16 +18,24 @@ class AlarmListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isActive = alarm.isActive;
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+    
     return Dismissible(
       key: Key(alarm.id),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16.0),
-        color: Colors.red,
+        padding: const EdgeInsets.only(right: 24.0),
+        decoration: BoxDecoration(
+          color: Colors.red.shade700,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: const Icon(
-          Icons.delete,
+          Icons.delete_outline,
           color: Colors.white,
+          size: 28,
         ),
       ),
       confirmDismiss: (_) async {
@@ -36,92 +44,226 @@ class AlarmListItem extends StatelessWidget {
       onDismissed: (_) {
         onDelete();
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: isActive 
+                ? (isDark 
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.3) 
+                    : Theme.of(context).colorScheme.primary.withOpacity(0.1))
+                : Colors.transparent,
+              blurRadius: isActive ? 8 : 0,
+              spreadRadius: isActive ? 1 : 0,
+              offset: isActive ? const Offset(0, 2) : Offset.zero,
+            ),
+          ],
         ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                // Alarm Time
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    _formatTime(alarm.time),
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: alarm.isActive
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.grey,
+        child: Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: isActive 
+                ? BorderSide(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                    width: 1.5,
+                  )
+                : BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.1),
+                    width: 1,
+                  ),
+          ),
+          color: isActive 
+              ? (isDark 
+                  ? Theme.of(context).colorScheme.surface 
+                  : Theme.of(context).colorScheme.surface)
+              : (isDark 
+                  ? Theme.of(context).colorScheme.surface.withOpacity(0.5) 
+                  : Theme.of(context).colorScheme.surface.withOpacity(0.7)),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 20, top: 16, bottom: 16, right: 16),
+              child: Row(
+                children: [
+                  // Alarm Time
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              _formatTime(alarm.time),
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: isActive
+                                    ? (isDark 
+                                        ? Theme.of(context).colorScheme.primary 
+                                        : Theme.of(context).colorScheme.primary)
+                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                letterSpacing: -1,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormat('a').format(DateTime(2022, 1, 1, alarm.time.hour, alarm.time.minute)),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: isActive
+                                    ? (isDark 
+                                        ? Theme.of(context).colorScheme.primary.withOpacity(0.8) 
+                                        : Theme.of(context).colorScheme.primary.withOpacity(0.8))
+                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        
+                        // Label
+                        if (alarm.label.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, bottom: 4),
+                            child: Text(
+                              alarm.label,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: isActive
+                                    ? Theme.of(context).colorScheme.onSurface
+                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        
+                        // Repeat Days and Icons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _getRepeatText(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isActive
+                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        // Features row
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              _buildFeatureChip(
+                                isActive: isActive && alarm.isVibrate,
+                                icon: Icons.vibration,
+                                label: 'Vibrate',
+                                context: context,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildFeatureChip(
+                                isActive: isActive,
+                                icon: Icons.music_note,
+                                label: 'Sound',
+                                context: context,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                
-                // Alarm Details
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Label
-                      if (alarm.label.isNotEmpty)
-                        Text(
-                          alarm.label,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: alarm.isActive
-                                ? Theme.of(context).textTheme.bodyLarge?.color
-                                : Colors.grey,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      
-                      // Repeat Days
-                      Text(
-                        _getRepeatText(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: alarm.isActive
-                              ? Colors.grey.shade600
-                              : Colors.grey,
-                        ),
+                  
+                  // Toggle Switch
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Transform.scale(
+                      scale: 1.1,
+                      child: Switch(
+                        value: isActive,
+                        onChanged: onToggle,
+                        activeColor: Theme.of(context).colorScheme.primary,
+                        activeTrackColor: isDark
+                            ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+                            : Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                        inactiveThumbColor: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade400,
+                        inactiveTrackColor: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade300,
                       ),
-                      
-                      // Additional Info
-                      Row(
-                        children: [
-                          if (alarm.isVibrate)
-                            Icon(
-                              Icons.vibration,
-                              size: 16,
-                              color: alarm.isActive
-                                  ? Colors.grey.shade600
-                                  : Colors.grey.shade400,
-                            ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                
-                // Toggle Switch
-                Switch(
-                  value: alarm.isActive,
-                  onChanged: onToggle,
-                  activeColor: Theme.of(context).colorScheme.primary,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureChip({
+    required bool isActive,
+    required IconData icon,
+    required String label,
+    required BuildContext context,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isActive
+            ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+            : Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+              : Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isActive
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isActive
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -135,7 +277,9 @@ class AlarmListItem extends StatelessWidget {
       time.hour,
       time.minute,
     );
-    final format = DateFormat.jm(); // e.g. 9:30 AM
+    
+    // Use hour:minute format, AM/PM will be shown separately
+    final format = DateFormat('h:mm');
     return format.format(dt);
   }
 
@@ -183,15 +327,19 @@ class AlarmListItem extends StatelessWidget {
         content: Text(
           'Are you sure you want to delete the alarm set for ${_formatTime(alarm.time)}?',
         ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
             ),
             child: const Text('Delete'),
           ),
