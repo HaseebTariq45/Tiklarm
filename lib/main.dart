@@ -8,11 +8,20 @@ import 'package:tiklarm/models/alarm_model.dart';
 import 'package:alarm/alarm.dart';
 import 'package:alarm/utils/alarm_set.dart';
 import 'package:tiklarm/utils/platform_utils.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Configure logging
+  if (kDebugMode) {
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      debugPrint('Flutter error: ${details.exception}');
+      debugPrint('Stack trace: ${details.stack}');
+    };
+  }
   
   // Initialize the alarm plugin
   if (PlatformUtils.isNativeAlarmsSupported) {
@@ -34,29 +43,21 @@ void main() async {
   runApp(const MyApp());
 }
 
-void _handleAlarmRing(int alarmId) async {
-  // Initialize the alarm service
+void _handleAlarmRing(int alarmId) {
+  // Get the alarm from the AlarmService
   final alarmService = AlarmService();
-  await alarmService.init();
+  final alarms = alarmService.getAlarms();
+  final alarmIndex = alarms.indexWhere((a) => a.id == alarmId.toString());
   
-  // Get all alarms and find the one that's ringing
-  final List<AlarmModel> alarms = alarmService.getAlarms();
-  final AlarmModel? ringingAlarm = alarms.firstWhere(
-    (alarm) => int.parse(alarm.id) == alarmId,
-    orElse: () => alarms.firstWhere(
-      (alarm) => int.parse('${alarm.id}9') == alarmId,
-      orElse: () => alarms.first,
-    ),
-  );
-  
-  // Navigate to the alarm trigger screen if the app is running
-  if (navigatorKey.currentContext != null && ringingAlarm != null) {
-    Navigator.push(
-      navigatorKey.currentContext!,
+  if (alarmIndex != -1) {
+    final alarm = alarms[alarmIndex];
+    
+    // Navigate to the trigger screen
+    // Note: This is a simplified implementation and might need adjustment
+    final navigatorKey = GlobalKey<NavigatorState>();
+    navigatorKey.currentState?.push(
       MaterialPageRoute(
-        builder: (context) => AlarmTriggerScreen(
-          alarm: ringingAlarm,
-        ),
+        builder: (context) => AlarmTriggerScreen(alarm: alarm),
       ),
     );
   }
@@ -66,25 +67,28 @@ void _handleAlarmRing(int alarmId) async {
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AlarmProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AlarmProvider()),
+      ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
         title: 'Tiklarm',
         theme: ThemeData(
+          primarySwatch: Colors.blue,
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
+            seedColor: Colors.blue,
             brightness: Brightness.light,
           ),
           useMaterial3: true,
         ),
         darkTheme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
+            seedColor: Colors.blue,
             brightness: Brightness.dark,
           ),
           useMaterial3: true,

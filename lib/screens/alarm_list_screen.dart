@@ -5,6 +5,7 @@ import 'package:tiklarm/providers/alarm_provider.dart';
 import 'package:tiklarm/screens/alarm_edit_screen.dart';
 import 'package:tiklarm/widgets/alarm_list_item.dart';
 import 'package:intl/intl.dart';
+import 'package:tiklarm/utils/platform_utils.dart';
 
 class AlarmListScreen extends StatelessWidget {
   const AlarmListScreen({Key? key}) : super(key: key);
@@ -18,64 +19,96 @@ class AlarmListScreen extends StatelessWidget {
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 2,
       ),
-      body: Consumer<AlarmProvider>(
-        builder: (context, alarmProvider, child) {
-          if (alarmProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          final alarms = alarmProvider.alarms;
-          
-          if (alarms.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Column(
+        children: [
+          // Web platform notice
+          if (PlatformUtils.isWeb)
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.alarm_off,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No alarms set',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
+                  Icon(Icons.info_outline, color: Colors.amber.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Limited functionality on web platform. '
+                      'For full alarm features, please use the mobile app.',
+                      style: TextStyle(color: Colors.amber.shade900),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => _navigateToAddAlarm(context),
-                    child: const Text('Add Alarm'),
                   ),
                 ],
               ),
-            );
-          }
+            ),
+          
+          // Main content
+          Expanded(
+            child: Consumer<AlarmProvider>(
+              builder: (context, alarmProvider, child) {
+                if (alarmProvider.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: alarms.length,
-            itemBuilder: (context, index) {
-              final alarm = alarms[index];
-              return AlarmListItem(
-                alarm: alarm,
-                onToggle: (value) {
-                  alarmProvider.toggleAlarm(alarm.id, value);
-                },
-                onTap: () {
-                  _navigateToEditAlarm(context, alarm);
-                },
-                onDelete: () {
-                  _showDeleteConfirmation(context, alarm);
-                },
-              );
-            },
-          );
-        },
+                final alarms = alarmProvider.alarms;
+                
+                if (alarms.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.alarm_off,
+                          size: 80,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No alarms set',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => _navigateToAddAlarm(context),
+                          child: const Text('Add Alarm'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: alarms.length,
+                  itemBuilder: (context, index) {
+                    final alarm = alarms[index];
+                    return AlarmListItem(
+                      alarm: alarm,
+                      onToggle: (value) {
+                        alarmProvider.toggleAlarm(alarm.id, value);
+                      },
+                      onTap: () {
+                        _navigateToEditAlarm(context, alarm);
+                      },
+                      onDelete: () {
+                        _showDeleteConfirmation(context, alarm);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddAlarm(context),
