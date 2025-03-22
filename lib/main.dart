@@ -9,7 +9,7 @@ import 'package:alarm/alarm.dart';
 import 'package:alarm/utils/alarm_set.dart';
 import 'package:tiklarm/utils/platform_utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
-import 'dart:io' show Platform;
+import 'package:tiklarm/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +43,9 @@ void main() async {
   runApp(const MyApp());
 }
 
+// Global navigator key for accessing the context from anywhere
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void _handleAlarmRing(int alarmId) {
   // Get the alarm from the AlarmService
   final alarmService = AlarmService();
@@ -53,8 +56,6 @@ void _handleAlarmRing(int alarmId) {
     final alarm = alarms[alarmIndex];
     
     // Navigate to the trigger screen
-    // Note: This is a simplified implementation and might need adjustment
-    final navigatorKey = GlobalKey<NavigatorState>();
     navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (context) => AlarmTriggerScreen(alarm: alarm),
@@ -62,9 +63,6 @@ void _handleAlarmRing(int alarmId) {
     );
   }
 }
-
-// Global navigator key for accessing the context from anywhere
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -94,7 +92,7 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,
-        home: const AlarmListScreen(),
+        home: const HomeScreen(),
       ),
     );
   }

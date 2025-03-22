@@ -8,17 +8,19 @@ import 'package:intl/intl.dart';
 import 'package:tiklarm/utils/platform_utils.dart';
 
 class AlarmListScreen extends StatelessWidget {
-  const AlarmListScreen({Key? key}) : super(key: key);
+  final bool showAppBar;
+  
+  const AlarmListScreen({Key? key, this.showAppBar = true}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: showAppBar ? AppBar(
         title: const Text('Tiklarm'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 2,
-      ),
+      ) : null,
       body: Column(
         children: [
           // Web platform notice
