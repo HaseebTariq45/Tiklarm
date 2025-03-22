@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:tiklarm/services/timer_service.dart';
 import 'package:tiklarm/services/notification_service.dart';
 import 'package:tiklarm/services/sound_service.dart';
+import 'package:tiklarm/services/picker_sound_service.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({Key? key}) : super(key: key);
@@ -40,10 +42,14 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
   final TimerService _timerService = TimerService();
   final NotificationService _notificationService = NotificationService();
   final SoundService _soundService = SoundService();
+  final PickerSoundService _pickerSoundService = PickerSoundService();
   
   @override
   void initState() {
     super.initState();
+    
+    // Initialize picker sound service
+    _pickerSoundService.initialize();
     
     // Pulse animation for the timer when running
     _pulseController = AnimationController(
@@ -428,20 +434,7 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildTimeInput('Hours', _hours, (value) {
-                                      setState(() => _hours = value.clamp(0, 23));
-                                    }),
-                                    _buildTimeInput('Minutes', _minutes, (value) {
-                                      setState(() => _minutes = value.clamp(0, 59));
-                                    }),
-                                    _buildTimeInput('Seconds', _seconds, (value) {
-                                      setState(() => _seconds = value.clamp(0, 59));
-                                    }),
-                                  ],
-                                ),
+                                _buildScrollableTimePicker(),
                               ],
                             ),
                           ),
@@ -562,56 +555,191 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildTimeInput(String label, int value, Function(int) onChanged) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildScrollableTimePicker() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    final selectedTextStyle = TextStyle(
+      fontSize: 30,
+      fontWeight: FontWeight.bold,
+      color: colorScheme.primary,
+    );
+    
+    final unselectedTextStyle = TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w400,
+      color: isDark ? Colors.white60 : Colors.black54,
+    );
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          width: 65,
-          child: Column(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_up),
-                onPressed: () => onChanged(value + 1),
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                iconSize: 20,
-                constraints: const BoxConstraints(minHeight: 28),
+        // Hours label
+        Column(
+          children: [
+            Text(
+              'Hours',
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurface.withOpacity(0.7),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(6),
+            ),
+            const SizedBox(height: 4),
+            // Hours scroll wheel
+            Container(
+              width: 70,
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                  bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
-                child: Text(
-                  value.toString().padLeft(2, '0'),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              ),
+              child: CupertinoPicker(
+                selectionOverlay: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                      bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                    ),
+                    color: colorScheme.primary.withOpacity(0.05),
                   ),
                 ),
+                looping: true,
+                itemExtent: 40,
+                backgroundColor: Colors.transparent,
+                onSelectedItemChanged: (index) {
+                  setState(() {
+                    _hours = index;
+                  });
+                  _pickerSoundService.playTickSound();
+                },
+                children: List<Widget>.generate(24, (index) {
+                  return Center(
+                    child: Text(
+                      index.toString().padLeft(2, '0'),
+                      style: unselectedTextStyle,
+                    ),
+                  );
+                }),
+                scrollController: FixedExtentScrollController(
+                  initialItem: _hours,
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down),
-                onPressed: () => onChanged(value - 1),
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                iconSize: 20,
-                constraints: const BoxConstraints(minHeight: 28),
+            ),
+          ],
+        ),
+        
+        // Minutes label
+        Column(
+          children: [
+            Text(
+              'Minutes',
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurface.withOpacity(0.7),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            // Minutes scroll wheel
+            Container(
+              width: 70,
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                  bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                ),
+              ),
+              child: CupertinoPicker(
+                selectionOverlay: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                      bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                    ),
+                    color: colorScheme.primary.withOpacity(0.05),
+                  ),
+                ),
+                looping: true,
+                itemExtent: 40,
+                backgroundColor: Colors.transparent,
+                onSelectedItemChanged: (index) {
+                  setState(() {
+                    _minutes = index;
+                  });
+                  _pickerSoundService.playTickSound();
+                },
+                children: List<Widget>.generate(60, (index) {
+                  return Center(
+                    child: Text(
+                      index.toString().padLeft(2, '0'),
+                      style: unselectedTextStyle,
+                    ),
+                  );
+                }),
+                scrollController: FixedExtentScrollController(
+                  initialItem: _minutes,
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        // Seconds label
+        Column(
+          children: [
+            Text(
+              'Seconds',
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Seconds scroll wheel
+            Container(
+              width: 70,
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                  bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                ),
+              ),
+              child: CupertinoPicker(
+                selectionOverlay: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                      bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                    ),
+                    color: colorScheme.primary.withOpacity(0.05),
+                  ),
+                ),
+                looping: true,
+                itemExtent: 40,
+                backgroundColor: Colors.transparent,
+                onSelectedItemChanged: (index) {
+                  setState(() {
+                    _seconds = index;
+                  });
+                  _pickerSoundService.playTickSound();
+                },
+                children: List<Widget>.generate(60, (index) {
+                  return Center(
+                    child: Text(
+                      index.toString().padLeft(2, '0'),
+                      style: unselectedTextStyle,
+                    ),
+                  );
+                }),
+                scrollController: FixedExtentScrollController(
+                  initialItem: _seconds,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

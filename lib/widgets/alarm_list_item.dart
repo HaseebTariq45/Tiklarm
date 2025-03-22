@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:tiklarm/models/alarm_model.dart';
 import 'package:tiklarm/services/timer_service.dart';
 import 'package:provider/provider.dart';
@@ -20,8 +21,7 @@ class AlarmListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isActive = alarm.isActive;
-    final brightness = Theme.of(context).brightness;
-    final isDark = brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final timerService = Provider.of<TimerService>(context);
     
     return Dismissible(
@@ -32,7 +32,7 @@ class AlarmListItem extends StatelessWidget {
         padding: const EdgeInsets.only(right: 24.0),
         decoration: BoxDecoration(
           color: Colors.red.shade700,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: const Icon(
           Icons.delete_outline,
@@ -46,163 +46,187 @@ class AlarmListItem extends StatelessWidget {
       onDismissed: (_) {
         onDelete();
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: isActive 
-                ? (isDark 
-                    ? Theme.of(context).colorScheme.primary.withOpacity(0.3) 
-                    : Theme.of(context).colorScheme.primary.withOpacity(0.1))
-                : Colors.transparent,
-              blurRadius: isActive ? 8 : 0,
-              spreadRadius: isActive ? 1 : 0,
-              offset: isActive ? const Offset(0, 2) : Offset.zero,
-            ),
-          ],
-        ),
-        child: Card(
-          margin: EdgeInsets.zero,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: isActive 
-                ? BorderSide(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
-                    width: 1.5,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: isActive 
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [
+                            Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                            Theme.of(context).colorScheme.primary.withOpacity(0.25),
+                          ]
+                        : [
+                            Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          ],
                   )
-                : BorderSide(
-                    color: Theme.of(context).dividerColor.withOpacity(0.1),
-                    width: 1,
-                  ),
-          ),
-          color: isActive 
-              ? (isDark 
-                  ? Theme.of(context).colorScheme.surface 
-                  : Theme.of(context).colorScheme.surface)
-              : (isDark 
-                  ? Theme.of(context).colorScheme.surface.withOpacity(0.5) 
-                  : Theme.of(context).colorScheme.surface.withOpacity(0.7)),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.only(left: 20, top: 16, bottom: 16, right: 16),
-              child: Row(
-                children: [
-                  // Alarm Time
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              timerService.formatTimeOfDay(alarm.time),
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: isActive
-                                    ? (isDark 
-                                        ? Theme.of(context).colorScheme.primary 
-                                        : Theme.of(context).colorScheme.primary)
-                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-                                letterSpacing: -1,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 4),
-                        
-                        // Label
-                        if (alarm.label.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2, bottom: 4),
-                            child: Text(
-                              alarm.label,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: isActive
-                                    ? Theme.of(context).colorScheme.onSurface
-                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        
-                        // Repeat Days and Icons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _getRepeatText(),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isActive
-                                      ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
-                                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Features row
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              _buildFeatureChip(
-                                isActive: isActive && alarm.isVibrate,
-                                icon: Icons.vibration,
-                                label: 'Vibrate',
-                                context: context,
-                              ),
-                              const SizedBox(width: 8),
-                              _buildFeatureChip(
-                                isActive: isActive,
-                                icon: Icons.music_note,
-                                label: 'Sound',
-                                context: context,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                : null,
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
+                  ]
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: isActive ? ImageFilter.blur(sigmaX: 8, sigmaY: 8) : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? (isDark 
+                          ? Colors.white.withOpacity(0.07)
+                          : Colors.white.withOpacity(0.7))
+                      : (isDark
+                          ? Colors.white.withOpacity(0.03)
+                          : Colors.white.withOpacity(0.5)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isActive
+                        ? Theme.of(context).colorScheme.primary.withOpacity(isDark ? 0.4 : 0.2)
+                        : Colors.transparent,
+                    width: 1.5,
                   ),
-                  
-                  // Toggle Switch
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Transform.scale(
-                      scale: 1.1,
-                      child: Switch(
-                        value: isActive,
-                        onChanged: onToggle,
-                        activeColor: Theme.of(context).colorScheme.primary,
-                        activeTrackColor: isDark
-                            ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
-                            : Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                        inactiveThumbColor: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade400,
-                        inactiveTrackColor: isDark
-                            ? Colors.grey.shade800
-                            : Colors.grey.shade300,
+                ),
+                child: Row(
+                  children: [
+                    // Time and details container
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Time indicator dot
+                          if (isActive)
+                            Container(
+                              width: 12,
+                              height: 12,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          
+                          // Time and alarm info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Time display
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      timerService.formatTimeOfDay(alarm.time),
+                                      style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: isActive
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                        letterSpacing: -1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                
+                                const SizedBox(height: 4),
+                                
+                                // Label
+                                if (alarm.label.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      alarm.label,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: isActive
+                                            ? Theme.of(context).colorScheme.onSurface
+                                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                
+                                // Repeat days
+                                Text(
+                                  _getRepeatText(),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: isActive
+                                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                
+                                // Features/badges row
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      if (alarm.isVibrate)
+                                        _buildFeatureBadge(
+                                          isActive: isActive,
+                                          icon: Icons.vibration,
+                                          label: 'Vibrate',
+                                          context: context,
+                                        ),
+                                      _buildFeatureBadge(
+                                        isActive: isActive,
+                                        icon: Icons.music_note,
+                                        label: alarm.soundPath ?? 'Default',
+                                        context: context,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    
+                    // Toggle Switch
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Transform.scale(
+                        scale: 0.9,
+                        child: Switch.adaptive(
+                          value: isActive,
+                          onChanged: onToggle,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          activeTrackColor: isDark
+                              ? Theme.of(context).colorScheme.primary.withOpacity(0.4)
+                              : Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          inactiveThumbColor: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade400,
+                          inactiveTrackColor: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -211,19 +235,19 @@ class AlarmListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureChip({
+  Widget _buildFeatureBadge({
     required bool isActive,
     required IconData icon,
     required String label,
     required BuildContext context,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: isActive
             ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
             : Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(30),
         border: Border.all(
           color: isActive
               ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
@@ -258,36 +282,34 @@ class AlarmListItem extends StatelessWidget {
   }
 
   String _getRepeatText() {
-    final List<String> daysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
-    // Check if no days are selected
     if (!alarm.days.contains(true)) {
-      return 'One time alarm';
+      return 'One time';
     }
     
-    // Check if all days are selected
-    if (!alarm.days.contains(false)) {
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final selectedDays = <String>[];
+    
+    for (int i = 0; i < alarm.days.length; i++) {
+      if (alarm.days[i]) {
+        selectedDays.add(days[i]);
+      }
+    }
+    
+    // Check for every day
+    if (selectedDays.length == 7) {
       return 'Every day';
     }
     
-    // Check if weekdays only
-    if (alarm.days[0] && alarm.days[1] && alarm.days[2] && alarm.days[3] && alarm.days[4] && 
-        !alarm.days[5] && !alarm.days[6]) {
+    // Check for weekdays
+    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    if (selectedDays.length == 5 && weekdays.every((day) => selectedDays.contains(day))) {
       return 'Weekdays';
     }
     
-    // Check if weekends only
-    if (!alarm.days[0] && !alarm.days[1] && !alarm.days[2] && !alarm.days[3] && !alarm.days[4] && 
-        alarm.days[5] && alarm.days[6]) {
+    // Check for weekends
+    final weekends = ['Sat', 'Sun'];
+    if (selectedDays.length == 2 && weekends.every((day) => selectedDays.contains(day))) {
       return 'Weekends';
-    }
-    
-    // Otherwise, list the selected days
-    final List<String> selectedDays = [];
-    for (int i = 0; i < 7; i++) {
-      if (alarm.days[i]) {
-        selectedDays.add(daysShort[i]);
-      }
     }
     
     return selectedDays.join(', ');
@@ -295,25 +317,82 @@ class AlarmListItem extends StatelessWidget {
 
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
     final timerService = Provider.of<TimerService>(context, listen: false);
+    
     return await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Alarm'),
-        content: Text(
-          'Are you sure you want to delete the alarm set for ${timerService.formatTimeOfDay(alarm.time)}?',
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Delete Alarm?',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete this alarm?',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.alarm,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        timerService.formatTimeOfDay(alarm.time),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      if (alarm.label.isNotEmpty)
+                        Text(
+                          alarm.label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
             child: const Text('Delete'),

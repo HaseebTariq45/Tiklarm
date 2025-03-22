@@ -5,7 +5,7 @@ import 'package:alarm/alarm.dart';
 import 'package:alarm/model/alarm_settings.dart';
 import 'package:alarm/model/notification_settings.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_native_timezone/flutter_native_timezone.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:tiklarm/models/alarm_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';

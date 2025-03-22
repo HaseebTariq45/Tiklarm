@@ -97,7 +97,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final SoundService _soundService = SoundService();
   final VibrationService _vibrationService = VibrationService();
-  
+
   @override
   void initState() {
     super.initState();

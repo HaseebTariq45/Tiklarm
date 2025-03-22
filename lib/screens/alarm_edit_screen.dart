@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:tiklarm/models/alarm_model.dart';
 import 'package:tiklarm/providers/alarm_provider.dart';
 import 'package:tiklarm/widgets/day_selector.dart';
 import 'package:intl/intl.dart';
 import 'package:tiklarm/services/timer_service.dart';
+import 'package:tiklarm/services/picker_sound_service.dart';
 
 class AlarmEditScreen extends StatefulWidget {
   final AlarmModel alarm;
@@ -36,9 +38,15 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
     'classic_alarm'
   ];
 
+  // For custom time picker
+  late int _selectedHour;
+  late int _selectedMinute;
+  late bool _isAM;
+
   final _labelController = TextEditingController();
   late AnimationController _animationController;
   late Animation<double> _animation;
+  final PickerSoundService _pickerSoundService = PickerSoundService();
 
   @override
   void initState() {
@@ -51,6 +59,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
     _isVibrate = widget.alarm.isVibrate;
     _snoozeTime = widget.alarm.snoozeTime;
 
+    // Initialize time picker values
+    _selectedHour = _time.hourOfPeriod == 0 ? 12 : _time.hourOfPeriod;
+    _selectedMinute = _time.minute;
+    _isAM = _time.period == DayPeriod.am;
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -60,6 +73,9 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+    
+    // Initialize picker sound service
+    _pickerSoundService.initialize();
   }
 
   @override
@@ -105,29 +121,14 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Time Picker
+              // Time Picker - replaced with custom time picker
               Center(
                 child: Hero(
                   tag: widget.isNew ? 'new_alarm_time' : 'alarm_time_${widget.alarm.id}',
-                  child: GestureDetector(
-                    onTap: _showTimePicker,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 24),
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 36),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.6),
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                                ]
-                              : [
-                                  Theme.of(context).colorScheme.primary,
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                      color: Theme.of(context).colorScheme.surfaceVariant,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
@@ -137,16 +138,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
                           ),
                         ],
                       ),
-                      child: Text(
-                        _formatTime(_time),
-                        style: const TextStyle(
-                          fontSize: 60,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                    ),
+                    child: _buildScrollableTimePicker(),
                   ),
                 ),
               ),
@@ -431,40 +423,174 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> with SingleTickerProv
     );
   }
 
-  void _showTimePicker() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _time,
-      builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            timePickerTheme: TimePickerThemeData(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              hourMinuteShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              dayPeriodShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              dayPeriodColor: Theme.of(context).colorScheme.primaryContainer,
-              dayPeriodTextColor: Theme.of(context).colorScheme.onPrimaryContainer,
-              hourMinuteColor: Theme.of(context).colorScheme.primaryContainer,
-              hourMinuteTextColor: Theme.of(context).colorScheme.onPrimaryContainer,
-              dialBackgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-              dialHandColor: Theme.of(context).colorScheme.primary,
-              dialTextColor: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          child: child!,
-        );
-      },
+  Widget _buildScrollableTimePicker() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedTextStyle = TextStyle(
+      fontSize: 30,
+      fontWeight: FontWeight.bold,
+      color: Theme.of(context).colorScheme.primary,
     );
     
-    if (picked != null && picked != _time) {
-      setState(() {
-        _time = picked;
-      });
+    final unselectedTextStyle = TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w400,
+      color: isDark ? Colors.white60 : Colors.black54,
+    );
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Hours
+          Container(
+            width: 70,
+            height: 180,
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+              ),
+            ),
+            child: CupertinoPicker(
+              selectionOverlay: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                    bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                  ),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                ),
+              ),
+              looping: true,
+              itemExtent: 50,
+              backgroundColor: Colors.transparent,
+              onSelectedItemChanged: (index) {
+                setState(() {
+                  _selectedHour = index == 0 ? 12 : index;
+                  _updateTimeOfDay();
+                });
+                _pickerSoundService.playTickSound();
+              },
+              children: List<Widget>.generate(12, (index) {
+                final hour = index == 0 ? 12 : index;
+                return Center(
+                  child: Text(
+                    hour.toString(),
+                    style: unselectedTextStyle,
+                  ),
+                );
+              }),
+              scrollController: FixedExtentScrollController(
+                initialItem: _selectedHour == 12 ? 0 : _selectedHour,
+              ),
+            ),
+          ),
+          
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(':', style: selectedTextStyle),
+          ),
+          
+          // Minutes
+          Container(
+            width: 70,
+            height: 180,
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+              ),
+            ),
+            child: CupertinoPicker(
+              selectionOverlay: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                    bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                  ),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                ),
+              ),
+              looping: true,
+              itemExtent: 50,
+              backgroundColor: Colors.transparent,
+              onSelectedItemChanged: (index) {
+                setState(() {
+                  _selectedMinute = index;
+                  _updateTimeOfDay();
+                });
+                _pickerSoundService.playTickSound();
+              },
+              children: List<Widget>.generate(60, (index) {
+                return Center(
+                  child: Text(
+                    index.toString().padLeft(2, '0'),
+                    style: unselectedTextStyle,
+                  ),
+                );
+              }),
+              scrollController: FixedExtentScrollController(
+                initialItem: _selectedMinute,
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 10),
+          
+          // AM/PM
+          Container(
+            width: 70,
+            height: 180,
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+                bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+              ),
+            ),
+            child: CupertinoPicker(
+              selectionOverlay: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                    bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                  ),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                ),
+              ),
+              looping: true,
+              itemExtent: 50,
+              backgroundColor: Colors.transparent,
+              onSelectedItemChanged: (index) {
+                setState(() {
+                  _isAM = index == 0;
+                  _updateTimeOfDay();
+                });
+                _pickerSoundService.playTickSound();
+              },
+              children: [
+                Center(child: Text('AM', style: unselectedTextStyle)),
+                Center(child: Text('PM', style: unselectedTextStyle)),
+              ],
+              scrollController: FixedExtentScrollController(
+                initialItem: _isAM ? 0 : 1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateTimeOfDay() {
+    int hour = _selectedHour;
+    if (!_isAM && hour != 12) {
+      hour += 12;
+    } else if (_isAM && hour == 12) {
+      hour = 0;
     }
+    
+    _time = TimeOfDay(hour: hour, minute: _selectedMinute);
   }
 
   String _formatTime(TimeOfDay time) {

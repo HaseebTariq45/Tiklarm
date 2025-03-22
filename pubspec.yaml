@@ -40,11 +40,13 @@ dependencies:
   provider: ^6.1.2
   intl: ^0.19.0
   permission_handler: ^11.1.0
-  flutter_native_timezone: ^2.0.0
+  flutter_timezone: ^1.0.8
   wakelock_plus: ^1.2.10
   audioplayers: ^6.4.0
   vibration: ^1.8.4
   url_launcher: ^6.3.1
+  flutter_native_splash: ^2.3.13
+  bottom_sheet: ^3.1.2
 
 dev_dependencies:
   flutter_test:
