@@ -1,0 +1,8 @@
+Required Sound Files:
+1. classic_alarm.mp3 - Classical alarm sound
+2. nature_alarm.mp3 - Nature sounds like birds
+3. upbeat_alarm.mp3 - Modern electronic sound
+4. gentle_alarm.mp3 - Soft wake-up sound
+5. default_alarm.mp3 - Standard alarm sound
+6. timer_complete.mp3 - Timer completion sound
+7. picker_tick.mp3 - Sound for time picker 

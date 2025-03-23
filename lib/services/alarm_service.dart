@@ -268,7 +268,7 @@ class AlarmService {
     final alarmSettings = AlarmSettings(
       id: int.parse(alarm.id),
       dateTime: scheduledDate,
-      assetAudioPath: 'assets/sounds/${alarm.soundPath}.mp3',
+      assetAudioPath: 'sounds/${alarm.soundPath}.mp3',
       loopAudio: true,
       vibrate: alarm.isVibrate,
       notificationSettings: NotificationSettings(
@@ -307,7 +307,7 @@ class AlarmService {
       final alarmSettings = AlarmSettings(
         id: int.parse('${alarm.id}9'), // Add 9 to the ID to make it unique
         dateTime: snoozeTime,
-        assetAudioPath: 'assets/sounds/${alarm.soundPath}.mp3',
+        assetAudioPath: 'sounds/${alarm.soundPath}.mp3',
         loopAudio: true,
         vibrate: alarm.isVibrate,
         notificationSettings: NotificationSettings(

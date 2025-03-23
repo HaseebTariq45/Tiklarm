@@ -233,30 +233,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     const double selectedSize = 28.0;
     const double unselectedSize = 24.0;
     
-    final icons = [
-      Icons.alarm,
-      Icons.language,
-      Icons.timer,
-      Icons.timer_outlined,
-    ];
+    IconData getIcon(int idx) {
+      switch (idx) {
+        case 0: return isSelected ? Icons.alarm : Icons.alarm_outlined;
+        case 1: return isSelected ? Icons.public : Icons.public_outlined;
+        case 2: return isSelected ? Icons.timer : Icons.timer_outlined;
+        case 3: return isSelected ? Icons.watch : Icons.watch_outlined;
+        default: return Icons.error;
+      }
+    }
     
     return AnimatedSize(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       child: Icon(
-        icons[index],
+        getIcon(index),
         size: isSelected ? selectedSize : unselectedSize,
       ),
     );
   }
   
   String _getNavLabel(int index) {
-    final labels = [
-      'Alarm',
-      'World Clock',
-      'Timer',
-      'Stopwatch',
-    ];
-    return labels[index];
+    switch (index) {
+      case 0: return 'Alarm';
+      case 1: return 'World';
+      case 2: return 'Timer';
+      case 3: return 'Stopwatch';
+      default: return '';
+    }
   }
 } 

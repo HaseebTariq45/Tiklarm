@@ -2,10 +2,13 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Add alternative mirrors for better connectivity
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven") }
+        maven { url = uri("https://kotlin.bintray.com/kotlinx") }
+        maven { url = uri("https://plugins.gradle.org/m2/") }
         maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://repo.spring.io/plugins-release/") }
+        maven { url = uri("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap") }
+        maven { url = uri("https://dl.bintray.com/kotlin/kotlinx") }
     }
 }
 

@@ -25,15 +25,15 @@ class SoundService {
       // Set volume from settings
       await _audioPlayer.setVolume(_settingsService.alarmVolume);
       
-      // Play selected sound using the same path structure as AlarmService
-      await _audioPlayer.play(AssetSource('assets/sounds/$sound.mp3'));
+      // Play selected sound using the corrected path structure
+      await _audioPlayer.play(AssetSource('sounds/$sound.mp3'));
       
       debugPrint('Playing alarm sound: $sound at volume: ${_settingsService.alarmVolume}');
     } catch (e) {
       debugPrint('Error playing alarm sound: $e');
       // Fallback to default sound if there's an error
       try {
-        await _audioPlayer.play(AssetSource('assets/sounds/default_alarm.mp3'));
+        await _audioPlayer.play(AssetSource('sounds/default_alarm.mp3'));
       } catch (fallbackError) {
         debugPrint('Error playing fallback sound: $fallbackError');
       }
@@ -46,13 +46,13 @@ class SoundService {
       // Set volume from settings
       await _audioPlayer.setVolume(_settingsService.alarmVolume);
       
-      // Play timer complete sound
-      await _audioPlayer.play(AssetSource('assets/sounds/timer_complete.mp3'));
+      // Play timer complete sound with corrected path
+      await _audioPlayer.play(AssetSource('sounds/timer_complete.mp3'));
     } catch (e) {
       debugPrint('Error playing timer completion sound: $e');
       // Try fallback sound
       try {
-        await _audioPlayer.play(AssetSource('assets/sounds/default_alarm.mp3'));
+        await _audioPlayer.play(AssetSource('sounds/default_alarm.mp3'));
       } catch (fallbackError) {
         debugPrint('Error playing fallback sound: $fallbackError');
       }

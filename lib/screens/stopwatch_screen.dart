@@ -6,7 +6,7 @@ import 'package:tiklarm/services/timer_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:tiklarm/providers/stopwatch_provider.dart';
-import 'package:wakelock/wakelock.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 class StopwatchScreen extends StatefulWidget {
@@ -97,7 +97,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
     
     // Enable wakelock when the stopwatch screen is active
     try {
-      Wakelock.enable();
+      _timerService.handleWakelock(true);
     } catch (e) {
       debugPrint('Error enabling wakelock: $e');
     }
@@ -112,13 +112,6 @@ class _StopwatchScreenState extends State<StopwatchScreen> with TickerProviderSt
     _initialAnimationController.dispose();
     
     // Disable wakelock when leaving the screen
-    try {
-      Wakelock.disable();
-    } catch (e) {
-      debugPrint('Error disabling wakelock: $e');
-    }
-    
-    // Ensure wakelock is disabled when leaving screen
     try {
       _timerService.handleWakelock(false);
     } catch (e) {

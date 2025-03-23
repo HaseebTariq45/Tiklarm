@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "tiklarm" "\0"
+            VALUE "FileDescription", "fresh_tiklarm" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "tiklarm" "\0"
+            VALUE "InternalName", "fresh_tiklarm" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "tiklarm.exe" "\0"
-            VALUE "ProductName", "tiklarm" "\0"
+            VALUE "OriginalFilename", "fresh_tiklarm.exe" "\0"
+            VALUE "ProductName", "fresh_tiklarm" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
